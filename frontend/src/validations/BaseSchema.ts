@@ -50,7 +50,7 @@ export const BaseSchema = z.object({
     .nonempty('Email is required')
     .regex(/^\S*$/, "Email can't include space")
     .regex(
-      /^(?![0-9]+@)([a-z0-9._+-]+)@([a-z]+)\.com$/,
+      /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
       'Invalid email format',
     ),
 

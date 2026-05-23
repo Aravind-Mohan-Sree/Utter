@@ -10,8 +10,6 @@ export class Booking {
       currency: string;
     },
     public status: string,
-    public refundStatus: string,
-    public cancelledAt: Date | null,
     public activeSeconds = 0,
     public topic = 'Unknown Topic',
     public language = 'N/A',

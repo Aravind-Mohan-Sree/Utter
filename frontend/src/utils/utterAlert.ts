@@ -22,6 +22,7 @@ export const utterAlert = ({
   inputOptions = {} as Record<string, string>,
   inputPlaceholder = 'Select an option',
   onConfirm = (_value?: string) => {},
+  didOpen = (_popup: HTMLElement) => {},
 }) => {
   return Swal.fire({
     title,
@@ -33,6 +34,7 @@ export const utterAlert = ({
     input,
     inputOptions,
     inputPlaceholder,
+    didOpen,
     customClass: {
       popup: 'custom-popup',
       icon: 'custom-icon',

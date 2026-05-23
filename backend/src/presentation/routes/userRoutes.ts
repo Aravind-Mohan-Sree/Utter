@@ -3,6 +3,7 @@ import passport from 'passport';
 import { BookingController } from '~controllers/user/BookingController';
 import { CreateBookingOrderUseCase } from '~use-cases/user/booking/CreateBookingOrderUseCase';
 import { VerifyPaymentAndBookUseCase } from '~use-cases/user/booking/VerifyPaymentAndBookUseCase';
+import { BookWithWalletUseCase } from '~use-cases/user/booking/BookWithWalletUseCase';
 import { RazorpayService } from '~concrete-services/RazorpayService';
 import { BookingRepository } from '~concrete-repositories/BookingRepository';
 import { FetchTutorsUseCase } from '~use-cases/user/tutors/FetchTutorsUseCase';
@@ -94,6 +95,12 @@ import { AbuseReportRepository } from '~concrete-repositories/AbuseReportReposit
 import { CreateAbuseReportUseCase } from '~use-cases/shared/report/CreateAbuseReportUseCase';
 import { GetUserAbuseReportsUseCase } from '~use-cases/shared/report/GetUserAbuseReportsUseCase';
 import { AbuseReportController } from '~controllers/shared/AbuseReportController';
+import { FeedbackRepository } from '~concrete-repositories/FeedbackRepository';
+import { SubmitFeedbackUseCase } from '~use-cases/tutor/SubmitFeedbackUseCase';
+import { GetFeedbackUseCase } from '~use-cases/shared/GetFeedbackUseCase';
+import { GetUserFeedbackFeedUseCase } from '~use-cases/user/GetUserFeedbackFeedUseCase';
+import { GetUserLanguageProgressUseCase } from '~use-cases/user/GetUserLanguageProgressUseCase';
+import { FeedbackController } from '~controllers/shared/FeedbackController';
 
 // repositories
 const userRepository = new UserRepository();
@@ -108,6 +115,7 @@ const messageRepository = new MessageRepository();
 const quizRepository = new QuizRepository();
 const notificationRepository = new NotificationRepository();
 const abuseReportRepository = new AbuseReportRepository();
+const feedbackRepository = new FeedbackRepository();
 
 // services
 const mailService = new MailService();
@@ -215,7 +223,17 @@ const verifyPaymentAndBookUseCase = new VerifyPaymentAndBookUseCase(
   createNotificationUseCase,
   redisService,
 );
-const getBookingsUseCase = new GetBookingsUseCase(bookingRepository);
+const bookWithWalletUseCase = new BookWithWalletUseCase(
+  bookingRepository,
+  sessionRepository,
+  userRepository,
+  tutorRepository,
+  mailService,
+  walletRepository,
+  createNotificationUseCase,
+  redisService,
+);
+const getBookingsUseCase = new GetBookingsUseCase(bookingRepository, sessionRepository, walletRepository);
 const cancelBookingUseCase = new CancelBookingUseCase(
   bookingRepository,
   sessionRepository,
@@ -299,6 +317,7 @@ const tutorsController = new TutorsController(
 const bookingController = new BookingController(
   createBookingOrderUseCase,
   verifyPaymentAndBookUseCase,
+  bookWithWalletUseCase,
   getBookingsUseCase,
   cancelBookingUseCase,
   pingBookingUseCase,
@@ -349,6 +368,26 @@ const quizController = new QuizController(
 const abuseReportController = new AbuseReportController(
   createAbuseReportUseCase,
   getUserAbuseReportsUseCase,
+  dataValidatorService,
+);
+
+const submitFeedbackUseCase = new SubmitFeedbackUseCase(
+  feedbackRepository,
+  bookingRepository,
+  sessionRepository,
+);
+const getFeedbackUseCase = new GetFeedbackUseCase(
+  feedbackRepository,
+  bookingRepository,
+);
+const getUserFeedbackFeedUseCase = new GetUserFeedbackFeedUseCase(feedbackRepository);
+const getUserLanguageProgressUseCase = new GetUserLanguageProgressUseCase(feedbackRepository);
+
+const feedbackController = new FeedbackController(
+  submitFeedbackUseCase,
+  getFeedbackUseCase,
+  getUserFeedbackFeedUseCase,
+  getUserLanguageProgressUseCase,
   dataValidatorService,
 );
 
@@ -418,6 +457,7 @@ router.get('/tutors/:id/sessions', auth.verify(), tutorsController.getTutorSessi
 // booking
 router.post('/book/order', auth.verify(), bookingController.createOrder);
 router.post('/book/verify', auth.verify(), bookingController.verifyPayment);
+router.post('/book/wallet', auth.verify(), bookingController.bookWithWallet);
 router.get('/bookings', auth.verify(), bookingController.getBookings);
 router.patch('/bookings/:id/cancel', auth.verify(), bookingController.cancelBooking);
 router.post('/bookings/:id/ping', auth.verify(), bookingController.pingSession);
@@ -431,6 +471,11 @@ router.post('/reviews', auth.verify(), reviewController.addReview);
 router.patch('/reviews/:id', auth.verify(), reviewController.updateReview);
 router.delete('/reviews/:id', auth.verify(), reviewController.deleteReview);
 router.get('/tutors/:tutorId/review-eligibility', auth.verify(), reviewController.checkEligibility);
+
+// feedback
+router.get('/feedback/booking/:bookingId', auth.verify(), feedbackController.getFeedbackByBooking);
+router.get('/feedback/feed', auth.verify(), feedbackController.getUserFeedbackFeed);
+router.get('/feedback/progress', auth.verify(), feedbackController.getUserLanguageProgress);
 
 // chat
 router.get('/chats', auth.verify(), chatController.getConversations);

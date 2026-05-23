@@ -4,10 +4,13 @@ import { Action, ThunkDispatch } from '@reduxjs/toolkit';
 import { useRouter,useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FiSlash } from 'react-icons/fi';
+import { LuInfo } from 'react-icons/lu';
+import { VscFeedback } from 'react-icons/vsc';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { commonLanguages } from '~components/form/LanguagesInput';
 import { SearchAndFilter } from '~components/form/SearchAndFilter';
+import { FeedbackModal } from '~components/modals/FeedbackModal';
 import AbstractShapesBackground from '~components/ui/AbstractShapesBackground';
 import Button from '~components/ui/Button';
 import { Card } from '~components/ui/Card';
@@ -26,6 +29,7 @@ import {
   getBookings,
   GetBookingsParams,
 } from '~services/shared/bookingService';
+import { getAccountDetails } from '~services/shared/managementService';
 import { RootState } from '~store/rootReducer';
 import { errorHandler } from '~utils/errorHandler';
 import { utterAlert } from '~utils/utterAlert';
@@ -44,16 +48,86 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const fetchVersionRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
   const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get('search') || '');
   const [itemsPerPage, setItemsPerPage] = useState(6);
   const [itemsOptions] = useState(['5', '10', '15', '20']);
   const [sort, setSort] = useState<'Newest' | 'Oldest'>('Newest');
-  const [language, setLanguage] = useState(
-    searchParams.get('language') || 'All',
-  );
+  const [status, setStatus] = useState<string>('All');
+  const [activeFilter, setActiveFilter] = useState<string>('Newest');
+  const [language, setLanguage] = useState(() => {
+    const langParam = searchParams.get('language');
+    if (!langParam || langParam === 'All') return 'All Languages';
+    return langParam;
+  });
   const [date] = useState(searchParams.get('date') || '');
   const [totalResults, setTotalResults] = useState(0);
   const [joinThreshold, setJoinThreshold] = useState(5);
+  const [tutorLanguages, setTutorLanguages] = useState<string[]>([]);
+
+  // Feedback Modal states
+  const [feedbackBooking, setFeedbackBooking] = useState<Booking | null>(null);
+  const [feedbackMode, setFeedbackMode] = useState<'submit' | 'view'>('view');
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [showUpcomingTooltip, setShowUpcomingTooltip] = useState(false);
+
+  const handleOpenFeedback = (booking: Booking, mode: 'submit' | 'view' = 'view') => {
+    setFeedbackBooking(booking);
+    setFeedbackMode(mode);
+    setIsFeedbackOpen(true);
+  };
+
+  useEffect(() => {
+    const feedbackBookingId = searchParams.get('feedbackBookingId');
+    if (feedbackBookingId && user && user.role === 'tutor') {
+      setFeedbackBooking({
+        id: feedbackBookingId,
+        sessionId: '',
+        topic: 'Session Evaluation',
+        language: '',
+        status: 'Completed',
+        date: '',
+        price: 0,
+        otherPartyName: '',
+        otherPartyAvatar: '',
+        otherPartyId: '',
+        otherPartyRole: 'user',
+      });
+      setFeedbackMode('submit');
+      setIsFeedbackOpen(true);
+
+      const params = new URLSearchParams(window.location.search);
+      params.delete('feedbackBookingId');
+      const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState(null, '', newRelativePathQuery);
+    } else if (feedbackBookingId) {
+      const params = new URLSearchParams(window.location.search);
+      params.delete('feedbackBookingId');
+      const newRelativePathQuery = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState(null, '', newRelativePathQuery);
+    }
+  }, [searchParams, user]);
+
+  useEffect(() => {
+    if (user?.role === 'tutor' && user?.email) {
+      (async () => {
+        try {
+          const res = await getAccountDetails('tutor', user.email);
+          if (res && res.tutor) {
+            setTutorLanguages(res.tutor.knownLanguages || []);
+          }
+        } catch {
+          // ignore error
+        }
+      })();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSearch(search), 500);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   const canJoin = (date: string | Date) => {
     if (joinThreshold === 0) return true;
@@ -86,15 +160,17 @@ export default function SessionsPage() {
     const currentVersion = ++fetchVersionRef.current;
 
     try {
-      setLoading(true);
+      if (isInitialLoadRef.current) {
+        setLoading(true);
+      }
       const params: GetBookingsParams = {
         page: currentPage,
         limit: itemsPerPage,
-        search,
-        status: 'Completed',
-        language: language === 'All' ? undefined : language,
+        search: debouncedSearch || undefined,
+        language: (language === 'All' || language === 'All Languages') ? undefined : language,
         date: date || undefined,
         sort: sort,
+        status: status === 'All' ? undefined : status,
       };
 
       const response = await getBookings(params, user.role);
@@ -118,8 +194,9 @@ export default function SessionsPage() {
       utterToast.error(errorHandler(error));
     } finally {
       setLoading(false);
+      isInitialLoadRef.current = false;
     }
-  }, [currentPage, itemsPerPage, search, sort, language, date, user?.role, dispatch]);
+  }, [currentPage, itemsPerPage, debouncedSearch, sort, status, language, date, user?.role, dispatch]);
 
   useEffect(() => {
     fetchBookings();
@@ -134,8 +211,14 @@ export default function SessionsPage() {
     setCurrentPage(1);
   };
 
-  const handleSortChange = (newSort: string) => {
-    setSort(newSort as 'Newest' | 'Oldest');
+  const handleSortChange = (newFilter: string) => {
+    setActiveFilter(newFilter);
+    if (newFilter === 'Newest' || newFilter === 'Oldest') {
+      setSort(newFilter);
+      setStatus('All');
+    } else {
+      setStatus(newFilter);
+    }
     setCurrentPage(1);
   };
 
@@ -147,7 +230,7 @@ export default function SessionsPage() {
   const handleCancel = (bookingId: string) => {
     return utterAlert({
       title: 'Cancel Session',
-      text: 'Are you sure you want to cancel this session? Cancellation is only allowed up to 1 hour before.',
+      text: 'Are you sure you want to cancel this session?',
       icon: 'warning',
       confirmText: 'Yes, Cancel',
       cancelText: 'No, Keep',
@@ -191,9 +274,65 @@ export default function SessionsPage() {
 
           {/* Upcoming Sessions */}
           <section>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
-              Upcoming Sessions
-            </h2>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">
+                Upcoming Sessions
+              </h2>
+              <div 
+                className="relative group"
+                onMouseLeave={() => setShowUpcomingTooltip(false)}
+              >
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-rose-500 transition-colors focus:outline-none p-0.5 rounded-full hover:bg-gray-100 cursor-pointer"
+                  aria-label="Session Information"
+                  onClick={() => setShowUpcomingTooltip(!showUpcomingTooltip)}
+                  onBlur={() => setShowUpcomingTooltip(false)}
+                >
+                  <LuInfo size={18} />
+                </button>
+                
+                {/* Premium Info Tooltip Card */}
+                <div className={`absolute right-[-100px] sm:right-auto sm:left-1/2 sm:-translate-x-1/2 top-full mt-2 w-72 max-w-[calc(100vw-2.5rem)] bg-white/95 backdrop-blur-md p-4 rounded-xl border border-rose-100 shadow-xl transition-all duration-300 z-50 text-left ${
+                  showUpcomingTooltip
+                    ? 'opacity-100 visible pointer-events-auto'
+                    : 'opacity-0 invisible pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto'
+                }`}>
+                  <div className="space-y-3 text-xs text-gray-600 leading-relaxed font-medium">
+                    <div className="flex gap-2 items-start">
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1.5" />
+                      <p>Sessions auto-end after <span className="font-bold text-gray-800">1 hour</span> of talk time.</p>
+                    </div>
+                    {user?.role === 'tutor' && (
+                      <>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
+                          <p>
+                            If you or a student cancels at least 1 hour before the session, the slot is freed.
+                          </p>
+                        </div>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+                          <p>
+                            If a session is unattended or not completed properly, it will be marked as incomplete.
+                          </p>
+                        </div>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
+                          <p>
+                            <span className="font-bold text-gray-800">Refunds for Incomplete Sessions</span>:<br />
+                            • <span className="font-semibold text-gray-700">Under 15 mins talk time</span>: No payout.<br />
+                            • <span className="font-semibold text-gray-700">15 to 30 mins talk time</span>: 50% payout credited to wallet.<br />
+                            • <span className="font-semibold text-gray-700">Above 30 mins talk time</span>: Full payout.
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="absolute top-0 right-[103px] sm:right-auto sm:left-1/2 sm:-translate-x-1/2 -mt-1.5 w-3 h-3 bg-white border-t border-l border-rose-100 rotate-45" />
+                </div>
+              </div>
+            </div>
             {loading && upcomingSessions.length === 0 ? (
               <div className="flex justify-center py-10"></div>
             ) : upcomingSessions.length > 0 ? (
@@ -224,6 +363,8 @@ export default function SessionsPage() {
                       isLoading={cancellingId === booking.id}
                       disabled={!!cancellingId}
                       showTime={true}
+                      price={booking.price}
+                      paymentProvider={booking.paymentProvider}
                       customActions={
                         <Button
                           variant="outline"
@@ -247,24 +388,28 @@ export default function SessionsPage() {
             )}
           </section>
 
-          {/* Completed Sessions */}
+          {/* Past Sessions */}
           <section>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <h2 className="text-xl font-semibold text-gray-800">
-                Completed Sessions
+                Past Sessions
               </h2>
             </div>
 
             <SearchAndFilter
               searchValue={search}
               onSearchChange={handleSearch}
-              activeFilter={sort}
+              activeFilter={activeFilter}
               onFilterChange={handleSortChange}
               selectedLanguage={language}
               onLanguageSelect={handleLanguageChange}
-              filters={['Newest', 'Oldest']}
-              languageOptions={['All', ...commonLanguages]}
-              placeholder="Search history..."
+              filters={['Newest', 'Oldest', 'Completed', 'Cancelled', 'Incomplete']}
+              languageOptions={
+                user?.role === 'tutor'
+                  ? ['All Languages', ...tutorLanguages]
+                  : ['All Languages', ...commonLanguages]
+              }
+              placeholder="Search past sessions..."
               className="mb-4"
               languageOptionsClassName="max-h-60 overflow-y-auto w-40 no-scrollbar"
             />
@@ -305,15 +450,36 @@ export default function SessionsPage() {
                         | 'Booked'
                         | 'Completed'
                         | 'Cancelled'
+                        | 'Incomplete'
                       }
-                      hideStatus={true}
+                      hideStatus={false}
                       joinedAt={new Date(booking.date)}
                       dateLabel="Scheduled"
                       isVerified={true}
                       rejectionReason={null}
                       isLoading={false}
                       showTime={true}
+                      price={booking.price}
+                      paymentProvider={booking.paymentProvider}
+                      activeSeconds={booking.activeSeconds}
                       className="hover:border-rose-200"
+                      customActions={
+                        (booking.status === 'Completed' ||
+                          (booking.status === 'Incomplete' && (booking.activeSeconds || 0) >= 900)) ? (
+                          <Button
+                            variant="primary"
+                            className="bg-rose-500 hover:bg-rose-600 text-white p-2.5 border-none shadow-md shadow-rose-100 rounded-full flex items-center justify-center"
+                            onClick={() =>
+                              handleOpenFeedback(
+                                booking,
+                                user?.role === 'tutor' ? 'submit' : 'view'
+                              )
+                            }
+                            icon={<VscFeedback className="text-base" />}
+                            title={user?.role === 'tutor' ? 'Feedback Report' : 'View Report'}
+                          />
+                        ) : undefined
+                      }
                     />
                   ))}
                 </div>
@@ -328,12 +494,29 @@ export default function SessionsPage() {
               </div>
             ) : (
               <div className="text-center py-10 bg-white/50 backdrop-blur-sm rounded-2xl border border-dashed border-gray-300">
-                <p className="text-gray-500">No completed sessions found.</p>
+                <p className="text-gray-500">No past sessions found.</p>
               </div>
             )}
           </section>
         </div>
       </div>
+
+      {feedbackBooking && (
+        <FeedbackModal
+          isOpen={isFeedbackOpen}
+          onClose={() => {
+            setIsFeedbackOpen(false);
+            setFeedbackBooking(null);
+          }}
+          bookingId={feedbackBooking.id}
+          role={user?.role as 'user' | 'tutor'}
+          mode={feedbackMode}
+          language={feedbackBooking.language}
+          topic={feedbackBooking.topic}
+          onSubmitSuccess={fetchBookings}
+          studentName={feedbackBooking.otherPartyName}
+        />
+      )}
     </div>
   );
 }

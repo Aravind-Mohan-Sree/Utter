@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { LuCalendar, LuChevronLeft, LuChevronRight } from 'react-icons/lu';
+import { useRef, useState } from 'react';
+import { LuCalendar, LuChevronLeft, LuChevronRight, LuInfo } from 'react-icons/lu';
 
 import { Card } from '~components/ui/Card';
 import { utterToast } from '~utils/utterToast';
@@ -48,6 +48,7 @@ export default function SessionList({
     bookingId
 }: SessionListProps) {
     const dateInputRef = useRef<HTMLInputElement>(null);
+    const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
     const formatLocalDate = (dateStr: string) => {
         if (!dateStr) return '';
@@ -87,9 +88,64 @@ export default function SessionList({
         <div className="flex flex-col items-center w-full animate-fadeIn">
             {/* Loader removed as per request */}
 
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
-                {userType === 'tutor' ? 'Your Sessions' : 'Available Sessions'}
-            </h2>
+            <div className="flex items-center gap-2 mb-6">
+                <h2 className="text-xl font-bold text-gray-900">
+                    {userType === 'tutor' ? 'Your Sessions' : 'Available Sessions'}
+                </h2>
+                {userType !== 'tutor' && (
+                    <div
+                        className="relative group"
+                        onMouseLeave={() => setShowInfoTooltip(false)}
+                    >
+                        <button
+                            type="button"
+                            className="text-gray-400 hover:text-rose-500 transition-colors focus:outline-none p-0.5 rounded-full hover:bg-gray-100 cursor-pointer"
+                            aria-label="Session Booking Policies"
+                            onClick={() => setShowInfoTooltip(!showInfoTooltip)}
+                            onBlur={() => setShowInfoTooltip(false)}
+                        >
+                            <LuInfo size={18} />
+                        </button>
+
+                        {/* Premium Tooltip Card */}
+                        <div className={`absolute right-[-50px] sm:right-auto sm:left-1/2 sm:-translate-x-1/2 top-full mt-2 w-72 max-w-[calc(100vw-2.5rem)] bg-white/95 backdrop-blur-md p-4 rounded-xl border border-rose-100 shadow-xl transition-all duration-300 z-50 text-left ${showInfoTooltip
+                            ? 'opacity-100 visible pointer-events-auto'
+                            : 'opacity-0 invisible pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:pointer-events-auto'
+                            }`}>
+                            <div className="space-y-3 text-xs text-gray-600 leading-relaxed font-medium">
+                                <div className="flex gap-2 items-start">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1.5" />
+                                    <p>
+                                        <span className="font-bold text-gray-800">Refunds</span>: Cancel at least <span className="font-bold text-gray-800">1 hour prior</span> to receive a 100% instant refund directly to your wallet.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 items-start">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
+                                    <p>
+                                        Cancellations made within 1 hour of the start time are non-refundable.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 items-start">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+                                    <p>
+                                        If a session is unattended or not completed properly, it will be marked as incomplete.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 items-start">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
+                                    <p>
+                                        <span className="font-bold text-gray-800">Refunds for Incomplete Sessions</span>:<br />
+                                        • <span className="font-semibold text-gray-700">Under 15 mins talk time</span>: 100% refund to wallet.<br />
+                                        • <span className="font-semibold text-gray-700">15 to 30 mins talk time</span>: 50% refund to wallet.<br />
+                                        • <span className="font-semibold text-gray-700">Above 30 mins talk time</span>: Non-refundable.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="absolute top-0 right-[53px] sm:right-auto sm:left-1/2 sm:-translate-x-1/2 -mt-1.5 w-3 h-3 bg-white border-t border-l border-rose-100 rotate-45" />
+                        </div>
+                    </div>
+                )}
+            </div>
 
             <div className="flex items-center gap-4 mb-8 bg-white p-2 rounded-xl border border-gray-200 shadow-sm z-20">
                 <button onClick={() => navigateDate('prev')} className="cursor-pointer p-2 text-gray-500 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">

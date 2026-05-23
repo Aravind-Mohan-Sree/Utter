@@ -14,7 +14,9 @@ import AbstractShapesBackground from '~components/ui/AbstractShapesBackground';
 import Avatar from '~components/ui/Avatar';
 import Loader from '~components/ui/Loader';
 import { fetchSessionCount, incrementSessionCount } from '~features/bookingSlice';
+import { getWalletTransactions } from '~services/shared/walletService';
 import {
+  bookWithWallet,
   createBookingOrder,
   getTutorDetails,
   getTutorSessions,
@@ -108,69 +110,132 @@ export default function TutorDetailsPage() {
   }, [id, selectedDate]);
 
   const handleBook = async (sessionId: string, price: number) => {
-    utterAlert({
-      title: 'Confirm Booking',
-      text: `Are you sure you want to book this session for ₹${price}?`,
-      confirmText: 'Pay Now',
-      showCancel: true,
-      icon: 'question',
-      onConfirm: async () => {
-        try {
-          setSessionsLoading(true);
-          const orderData = await createBookingOrder(price, 'INR', sessionId);
+    try {
+      setSessionsLoading(true);
+      const wallet = await getWalletTransactions('user');
+      const walletBalance = wallet.balance;
+      setSessionsLoading(false);
 
-          const options: RazorpayOptions = {
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-            amount: orderData.order.amount,
-            currency: orderData.order.currency,
-            name: 'Utter',
-            description: 'Tutor Session Booking',
-            order_id: orderData.order.id,
-            handler: async function (response: RazorpayResponse) {
-              try {
-                setBookingId(sessionId);
-                await verifyBookingPayment({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  sessionId,
-                  tutorId: tutor?.id,
-                  amount: orderData.order.amount / 100,
-                  currency: orderData.order.currency,
-                });
-                utterToast.success('Session booked successfully!');
-                fetchSessions();
-                dispatch(incrementSessionCount());
-                dispatch(fetchSessionCount('user'));
-              } catch (error) {
-                utterToast.error(errorHandler(error));
-              } finally {
-                setBookingId(null);
+      const inputOptions: Record<string, string> = {
+        razorpay: 'Razorpay (Card, UPI, Netbanking)',
+      };
+
+      if (walletBalance >= price) {
+        inputOptions.wallet = `Wallet Balance (Available: ₹${walletBalance})`;
+      } else {
+        inputOptions.wallet_disabled = `Wallet Balance (Insufficient: ₹${walletBalance})`;
+      }
+
+      utterAlert({
+        title: 'Select Payment Method',
+        text: `Session Price: ₹${price}`,
+        icon: 'question',
+        input: 'radio',
+        inputOptions,
+        inputPlaceholder: 'Select payment method',
+        confirmText: 'Pay Now',
+        showCancel: true,
+        didOpen: (popup) => {
+          const confirmButton = popup.querySelector('.custom-confirm-btn') as HTMLButtonElement;
+          const radioInputs = popup.querySelectorAll('input[type="radio"]') as NodeListOf<HTMLInputElement>;
+          
+          radioInputs.forEach(input => {
+            input.addEventListener('change', (e: Event) => {
+              if (confirmButton) {
+                const target = e.target as HTMLInputElement;
+                const isDisabled = target.value === 'wallet_disabled';
+                confirmButton.disabled = isDisabled;
+                confirmButton.style.opacity = isDisabled ? '0.5' : '1';
+                confirmButton.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
               }
-            },
-            prefill: {
-              name: user?.name || '',
-              email: user?.email || '',
-              contact: '6207494646',
-            },
-            theme: {
-              color: '#F43F5E',
-            },
-          };
-
-          const rzp1 = new window.Razorpay(options);
-          rzp1.on('payment.failed', function (response: RazorpayError) {
-            utterToast.error(response.error.description);
+            });
           });
-          rzp1.open();
-        } catch (error) {
-          utterToast.error(errorHandler(error));
-          fetchSessions();
-        } finally {
-          setSessionsLoading(false);
-        }
-      },
-    });
+        },
+        onConfirm: async (method) => {
+          if (!method || method === 'wallet_disabled') {
+            return;
+          }
+
+          if (method === 'wallet') {
+            try {
+              setSessionsLoading(true);
+              setBookingId(sessionId);
+              await bookWithWallet(sessionId, id);
+              utterToast.success('Session booked successfully!');
+              fetchSessions();
+              dispatch(incrementSessionCount());
+              dispatch(fetchSessionCount('user'));
+            } catch (error) {
+              utterToast.error(errorHandler(error));
+              fetchSessions();
+            } finally {
+              setSessionsLoading(false);
+              setBookingId(null);
+            }
+            return;
+          }
+
+          // Razorpay flow
+          try {
+            setSessionsLoading(true);
+            const orderData = await createBookingOrder(price, 'INR', sessionId);
+
+            const options: RazorpayOptions = {
+              key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+              amount: orderData.order.amount,
+              currency: orderData.order.currency,
+              name: 'Utter',
+              description: 'Tutor Session Booking',
+              order_id: orderData.order.id,
+              handler: async function (response: RazorpayResponse) {
+                try {
+                  setBookingId(sessionId);
+                  await verifyBookingPayment({
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature,
+                    sessionId,
+                    tutorId: tutor?.id,
+                    amount: orderData.order.amount / 100,
+                    currency: orderData.order.currency,
+                  });
+                  utterToast.success('Session booked successfully!');
+                  fetchSessions();
+                  dispatch(incrementSessionCount());
+                  dispatch(fetchSessionCount('user'));
+                } catch (error) {
+                  utterToast.error(errorHandler(error));
+                } finally {
+                  setBookingId(null);
+                }
+              },
+              prefill: {
+                name: user?.name || '',
+                email: user?.email || '',
+                contact: '6207494646',
+              },
+              theme: {
+                color: '#F43F5E',
+              },
+            };
+
+            const rzp1 = new window.Razorpay(options);
+            rzp1.on('payment.failed', function (response: RazorpayError) {
+              utterToast.error(response.error.description);
+            });
+            rzp1.open();
+          } catch (error) {
+            utterToast.error(errorHandler(error));
+            fetchSessions();
+          } finally {
+            setSessionsLoading(false);
+          }
+        },
+      });
+    } catch (error) {
+      setSessionsLoading(false);
+      utterToast.error(errorHandler(error));
+    }
   };
 
   useEffect(() => {
@@ -274,7 +339,7 @@ export default function TutorDetailsPage() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto mt-12 relative z-10">
-        <ReviewSection tutorId={id} />
+        <ReviewSection tutorId={id} averageRating={tutor.averageRating} />
       </div>
     </div>
   );

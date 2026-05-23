@@ -34,6 +34,7 @@ interface CreateSessionRequest {
   language: string;
   topic: string;
   price: number;
+  scheduledAt?: string;
 }
 
 interface SessionApiResponse {
@@ -563,6 +564,7 @@ export default function CreateSessionsPage() {
           const sessH = Math.floor(targetStart / 60);
           const sessM = targetStart % 60;
           const timeStr = `${String(sessH).padStart(2, '0')}:${String(sessM).padStart(2, '0')}`;
+          const d = new Date(`${dateStr}T${timeStr}:00`);
 
           newSessionsRequests.push({
             date: dateStr,
@@ -570,6 +572,7 @@ export default function CreateSessionsPage() {
             language: languages[i],
             topic: topics[i],
             price: 300,
+            scheduledAt: d.toISOString(),
           });
 
           daySessions.push({ start: targetStart, end: targetEnd });

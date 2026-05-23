@@ -8,6 +8,7 @@ export class FetchDataDTO {
   filter: string;
   sort: string;
   language: string;
+  minRating?: number;
 
   constructor(data: {
         page: string;
@@ -16,6 +17,7 @@ export class FetchDataDTO {
         filter: string;
         sort?: string;
         language?: string;
+        minRating?: string;
     }) {
     if (!data.page || !data.limit)
       throw new BadRequestError(errorMessage.INVALID_DATA);
@@ -26,5 +28,6 @@ export class FetchDataDTO {
     this.filter = (data.filter || '').trim();
     this.sort = (data.sort || '').trim();
     this.language = (data.language || '').trim();
+    this.minRating = data.minRating ? parseFloat(data.minRating) : undefined;
   }
 }

@@ -155,7 +155,7 @@ export default function VideoCallPage() {
     const isDisconnectingRef = useRef(false);
     const retryIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    const handleDisconnect = useCallback((emitSocketEvent?: boolean) => {
+    const handleDisconnect = useCallback((emitSocketEvent?: boolean, isAutoCompleted?: boolean) => {
         const shouldEmit = typeof emitSocketEvent === 'boolean' ? emitSocketEvent : true;
 
         if (isDisconnectingRef.current) return;
@@ -187,9 +187,14 @@ export default function VideoCallPage() {
         stopMediaTracks(false);
         
         setTimeout(() => {
-            router.push(searchParams.get('type') === 'chat' ? '/chats' : '/sessions');
+            const redirectUrl = (searchParams.get('type') === 'chat')
+                ? '/chats'
+                : (isAutoCompleted && myRole === 'tutor')
+                    ? `/sessions?feedbackBookingId=${bookingId}`
+                    : '/sessions';
+            router.push(redirectUrl);
         }, 100);
-    }, [router, stopMediaTracks, socket, searchParams, bookingId]);
+    }, [router, stopMediaTracks, socket, searchParams, bookingId, myRole]);
 
     useEffect(() => {
         const handleUnload = () => {
@@ -216,7 +221,7 @@ export default function VideoCallPage() {
 
         const onSessionCompleted = () => {
             utterToast.success('Session completed successfully');
-            handleDisconnect(false);
+            handleDisconnect(false, true);
         };
 
         socket.on('call_ended', onCallEnded);
@@ -244,7 +249,7 @@ export default function VideoCallPage() {
                         if (socket && otherId) {
                             socket.emit('session_completed', { otherPartyId: otherId });
                         }
-                        handleDisconnect(false);
+                        handleDisconnect(false, true);
                     }
                 } catch (err) {
                     console.error('Error pinging session time', err);

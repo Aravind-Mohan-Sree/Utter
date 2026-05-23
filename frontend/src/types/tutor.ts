@@ -15,6 +15,7 @@ export interface Tutor {
     languageVerificationStatus: 'pending' | 'approved' | 'rejected' | null;
     certificates: string[];
     createdAt: string;
+    averageRating?: number;
 }
 
 export interface Session {
@@ -104,6 +105,7 @@ export interface CreateSessionRequest {
     language: string;
     topic: string;
     price: number;
+    scheduledAt?: string;
 }
 
 export interface CreateSessionResponse {

@@ -6,7 +6,7 @@ import { logger } from '~logger/logger';
 import { GetBookingsDTO } from '~dtos/GetBookingsDTO';
 import { ICancelBookingUseCase } from '~use-case-interfaces/shared/ICancelBookingUseCase';
 import { IGetBookingsUseCase } from '~use-case-interfaces/shared/IGetBookingsUseCase';
-import { ICreateBookingOrderUseCase, IVerifyPaymentAndBookUseCase } from '~use-case-interfaces/user/IBookingUseCase';
+import { ICreateBookingOrderUseCase, IVerifyPaymentAndBookUseCase, IBookWithWalletUseCase } from '~use-case-interfaces/user/IBookingUseCase';
 
 interface IAuthenticatedRequest extends Request {
   user: {
@@ -23,6 +23,7 @@ export class BookingController {
   constructor(
     private _createBookingOrderUC: ICreateBookingOrderUseCase,
     private _verifyPaymentAndBookUC: IVerifyPaymentAndBookUseCase,
+    private _bookWithWalletUC: IBookWithWalletUseCase,
     private _getBookingsUC: IGetBookingsUseCase,
     private _cancelBookingUC: ICancelBookingUseCase,
     private _pingBookingUC: IPingBookingUseCase,
@@ -79,6 +80,30 @@ export class BookingController {
         success: true,
         message: successMessage.BOOKING_SUCCESS,
         booking,
+      });
+    } catch (error) {
+      logger.error(error);
+      next(error);
+    }
+  };
+
+  /**
+   * Books a session using the user's wallet balance.
+   */
+  bookWithWallet = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { sessionId, tutorId } = req.body;
+      const user = (req as unknown as IAuthenticatedRequest).user;
+
+      await this._bookWithWalletUC.execute({
+        sessionId,
+        userId: user.id,
+        tutorId,
+      });
+
+      res.status(httpStatusCode.OK).json({
+        success: true,
+        message: successMessage.BOOKING_SUCCESS,
       });
     } catch (error) {
       logger.error(error);

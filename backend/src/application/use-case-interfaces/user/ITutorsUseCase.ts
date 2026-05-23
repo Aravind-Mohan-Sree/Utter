@@ -8,6 +8,7 @@ export interface IFetchTutorsUseCase {
         query: string;
         sort: string;
         language: string;
+        minRating?: number;
     }): Promise<{
         totalTutorsCount: number;
         filteredTutorsCount: number;

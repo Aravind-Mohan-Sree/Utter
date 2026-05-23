@@ -57,7 +57,7 @@ export class VerifyPaymentAndBookUseCase implements IVerifyPaymentAndBookUseCase
       }
 
       const expiresAt = new Date(session.scheduledAt);
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      expiresAt.setDate(expiresAt.getDate() + 2);
 
       const updatedSession = await this._sessionRepository.updateOneByField(
         { _id: data.sessionId, status: 'Available' } as Parameters<ISessionRepository['updateOneByField']>[0],
@@ -98,8 +98,6 @@ export class VerifyPaymentAndBookUseCase implements IVerifyPaymentAndBookUseCase
           currency: data.currency,
         },
         'confirmed',
-        'none',
-        null,
         0,
         session.topic,
         session.language,

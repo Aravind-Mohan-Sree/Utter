@@ -21,9 +21,10 @@ import ReviewItem from './ReviewItem';
 
 interface ReviewSectionProps {
   tutorId: string;
+  averageRating?: number;
 }
 
-const ReviewSection: React.FC<ReviewSectionProps> = ({ tutorId }) => {
+const ReviewSection: React.FC<ReviewSectionProps> = ({ tutorId, averageRating }) => {
   const { user } = useSelector((state: RootState) => state.auth);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [eligibility, setEligibility] = useState({ canReview: false, alreadyReviewed: false });
@@ -107,9 +108,16 @@ const ReviewSection: React.FC<ReviewSectionProps> = ({ tutorId }) => {
     <div className="mt-8 space-y-6">
       <div className="flex items-center justify-between border-b border-rose-100 pb-4">
         <h2 className="text-xl font-bold text-gray-900">Student Reviews</h2>
-        <span className="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-sm font-medium">
-          {totalCount} {totalCount === 1 ? 'Review' : 'Reviews'}
-        </span>
+        <div className="flex items-center gap-2">
+          {averageRating !== undefined && averageRating > 0 && (
+            <div className="flex items-center gap-1 bg-amber-50 text-amber-600 px-3 py-1 rounded-full text-sm font-medium border border-amber-100/50">
+              <span>{averageRating.toFixed(1)} Rating</span>
+            </div>
+          )}
+          <span className="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-sm font-medium">
+            {totalCount} {totalCount === 1 ? 'Review' : 'Reviews'}
+          </span>
+        </div>
       </div>
 
       {eligibility.canReview && !eligibility.alreadyReviewed && (

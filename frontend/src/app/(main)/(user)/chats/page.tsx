@@ -919,10 +919,18 @@ export default function ChatsPage() {
                 <input
                   type="text"
                   placeholder="Search chats or messages..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-rose-500/20 outline-none transition-all placeholder:text-gray-400 text-black"
+                  className="w-full pl-10 pr-10 py-2 bg-gray-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-rose-500/20 outline-none transition-all placeholder:text-gray-400 text-black"
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-500 transition-colors cursor-pointer"
+                  >
+                    <FaTimes size={14} />
+                  </button>
+                )}
               </div>
             </div>
 

@@ -5,7 +5,7 @@ export interface Booking {
     sessionId: string;
     topic: string;
     language: string;
-    status: 'Available' | 'Booked' | 'Completed' | 'Cancelled';
+    status: 'Available' | 'Booked' | 'Completed' | 'Cancelled' | 'Incomplete';
     date: string;
     price: number;
     otherPartyName: string;
@@ -13,6 +13,8 @@ export interface Booking {
     otherPartyId: string;
     otherPartyRole: 'user' | 'tutor';
     transactionId?: string;
+    paymentProvider?: string;
+    activeSeconds?: number;
 }
 
 export interface GetBookingsResponse {

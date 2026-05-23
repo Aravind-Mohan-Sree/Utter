@@ -11,8 +11,6 @@ export interface IBooking extends Document {
     currency: string;
   };
   status: string;
-  refundStatus: string;
-  cancelledAt: Date | null;
   activeSeconds: number;
   topic: string;
   language: string;
@@ -33,8 +31,6 @@ const bookingSchema = new Schema<IBooking>(
       currency: { type: String, required: true },
     },
     status: { type: String, required: true },
-    refundStatus: { type: String, required: true },
-    cancelledAt: { type: Date, default: null },
     activeSeconds: { type: Number, default: 0 },
     topic: { type: String, required: true, default: 'Unknown Topic' },
     language: { type: String, required: true, default: 'N/A' },

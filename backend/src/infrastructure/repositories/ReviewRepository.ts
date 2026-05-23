@@ -126,4 +126,15 @@ export class ReviewRepository
     });
     return count > 0;
   }
+
+  /**
+   * Calculates the average rating for a specific tutor.
+   */
+  async getAverageRating(tutorId: string): Promise<number> {
+    const result = await ReviewModel.aggregate([
+      { $match: { tutorId: new mongoose.Types.ObjectId(tutorId) } },
+      { $group: { _id: null, averageRating: { $avg: '$rating' } } },
+    ]);
+    return result[0]?.averageRating || 0;
+  }
 }

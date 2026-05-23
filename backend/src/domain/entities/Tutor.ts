@@ -24,5 +24,6 @@ export class Tutor {
     public expiresAt?: Date | null,
     public createdAt?: Date,
     public updatedAt?: Date,
+    public averageRating?: number,
   ) {}
 }

@@ -15,6 +15,33 @@ export class TutorRepository
     super(TutorModel);
   }
 
+  override async findOneById(id: string): Promise<Tutor | null> {
+    const pipeline: PipelineStage[] = [
+      { $match: { _id: new mongo.ObjectId(id) } },
+      {
+        $lookup: {
+          from: 'reviews',
+          let: { tutorId: '$_id' },
+          pipeline: [
+            { $match: { $expr: { $eq: ['$tutorId', '$$tutorId'] } } },
+            { $group: { _id: null, avgRating: { $avg: '$rating' } } },
+          ],
+          as: 'ratingInfo',
+        },
+      },
+      {
+        $addFields: {
+          averageRating: { $ifNull: [{ $arrayElemAt: ['$ratingInfo.avgRating', 0] }, 0] },
+        },
+      },
+    ];
+
+    const result = await this.model.aggregate(pipeline);
+    if (result.length === 0) return null;
+
+    return this.toEntity(result[0] as ITutor & Document);
+  }
+
   /**
    * Fetches tutors with advanced filtering for both admins and students.
    * Handles verification states (Approved, Pending, Rejected) and language verification tasks.
@@ -35,6 +62,7 @@ export class TutorRepository
     sort = 'newest',
     language = 'All',
     isAdmin = false,
+    minRating?: number,
   ): Promise<{
     totalTutorsCount: number;
     filteredTutorsCount: number;
@@ -87,6 +115,31 @@ export class TutorRepository
     }
 
     pipeline.push({ $match: matchStage as Record<string, unknown> });
+
+    // Look up reviews and calculate average rating for each tutor
+    pipeline.push({
+      $lookup: {
+        from: 'reviews',
+        let: { tutorId: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $eq: ['$tutorId', '$$tutorId'] } } },
+          { $group: { _id: null, avgRating: { $avg: '$rating' } } },
+        ],
+        as: 'ratingInfo',
+      },
+    });
+
+    pipeline.push({
+      $addFields: {
+        averageRating: { $ifNull: [{ $arrayElemAt: ['$ratingInfo.avgRating', 0] }, 0] },
+      },
+    });
+
+    if (minRating !== undefined && minRating > 0) {
+      pipeline.push({
+        $match: { averageRating: { $gte: minRating } },
+      });
+    }
 
     // Set sorting stage
     let sortStage: Record<string, 1 | -1> = { createdAt: -1, _id: 1 };
@@ -169,6 +222,7 @@ export class TutorRepository
       doc.expiresAt,
       doc.createdAt,
       doc.updatedAt,
+      (doc as unknown as { averageRating?: number }).averageRating,
     );
   }
 

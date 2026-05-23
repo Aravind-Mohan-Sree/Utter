@@ -21,10 +21,11 @@ interface Tutor {
   yearsOfExperience: string;
   bio: string;
   createdAt: string;
+  averageRating?: number;
 }
 
 const commonLanguages = [
-  'All',
+  'All Languages',
   'English',
   'Spanish',
   'French',
@@ -48,7 +49,8 @@ export default function TutorsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(6);
   const [itemsOptions] = useState(['3', '6', '9', '15', '21']);
   const [sortBy, setSortBy] = useState('Newest');
-  const [selectedLanguage, setSelectedLanguage] = useState('All');
+  const [selectedLanguage, setSelectedLanguage] = useState('All Languages');
+  const [selectedRating, setSelectedRating] = useState('All Ratings');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [totalTutorsCount, setTotalTutorsCount] = useState(0);
@@ -75,12 +77,17 @@ export default function TutorsPage() {
         else if (sortBy === 'A-Z') sortParam = 'a-z';
         else if (sortBy === 'Z-A') sortParam = 'z-a';
 
+        let minRating: number | undefined;
+        if (selectedRating === '4.0★ & above') minRating = 4;
+        else if (selectedRating === '5.0★ only') minRating = 5;
+
         const res = await fetchTutors(
           currentPage,
           itemsPerPage,
           debouncedQuery,
           sortParam,
-          selectedLanguage,
+          selectedLanguage === 'All Languages' ? 'All' : selectedLanguage,
+          minRating,
         );
 
         const mappedTutors = res.tutorsData.tutors;
@@ -94,7 +101,7 @@ export default function TutorsPage() {
         setLoading(false);
       }
     })();
-  }, [debouncedQuery, sortBy, selectedLanguage, currentPage, itemsPerPage]);
+  }, [debouncedQuery, sortBy, selectedLanguage, selectedRating, currentPage, itemsPerPage]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -138,6 +145,12 @@ export default function TutorsPage() {
                 setCurrentPage(1);
               }}
               languageOptionsClassName="max-h-60 overflow-y-auto no-scrollbar"
+              ratingOptions={['All Ratings', '4.0★ & above', '5.0★ only']}
+              selectedRating={selectedRating}
+              onRatingSelect={(val) => {
+                setSelectedRating(val);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </div>
@@ -193,6 +206,7 @@ export default function TutorsPage() {
                   router.push(`/tutors/${tutor.id}`);
                 }}
                 className="bg-white/50 backdrop-blur-sm hover:border-rose-200"
+                averageRating={tutor.averageRating}
               />
             ))}
           </div>

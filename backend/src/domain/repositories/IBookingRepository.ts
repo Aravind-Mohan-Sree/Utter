@@ -15,6 +15,8 @@ export interface IBookingDetail {
     otherPartyId: string;
     otherPartyRole: 'user' | 'tutor';
     transactionId: string;
+    paymentProvider: string;
+    activeSeconds: number;
     createdAt: Date;
 }
 
@@ -51,4 +53,5 @@ export interface IBookingRepository extends IBaseRepository<Booking, IBooking> {
     getDashboardStats(): Promise<{ totalEarnings: number; completedSessions: number; languageStats: { language: string; sessionCount: number }[] }>;
     getStatsForPeriod(startDate: Date, endDate: Date): Promise<IPeriodStats>;
     getRecentSessions(limit: number): Promise<IBookingDetail[]>;
+    getTutorDashboardStats(tutorId: string): Promise<{ totalEarnings: number; completedSessionsCount: number; totalTeachTime: number; languageStats: { language: string; sessionCount: number }[] }>;
 }

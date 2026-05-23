@@ -19,6 +19,7 @@ export class TutorMapper {
       languageVerificationStatus: tutor.languageVerificationStatus,
       certificates: tutor.certificates,
       createdAt: tutor.createdAt,
+      averageRating: tutor.averageRating,
     };
   }
 }

@@ -30,8 +30,6 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
       ...schemaObj,
       payment: entity.payment,
       status: entity.status,
-      refundStatus: entity.refundStatus,
-      cancelledAt: entity.cancelledAt,
       activeSeconds: entity.activeSeconds,
       topic: entity.topic,
       language: entity.language,
@@ -50,8 +48,6 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
       String(doc.tutorId),
       doc.payment,
       doc.status,
-      doc.refundStatus,
-      doc.cancelledAt,
       doc.activeSeconds,
       doc.topic,
       doc.language,
@@ -69,6 +65,9 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
   async fetchBookings(params: IFetchBookingsParams): Promise<IFetchBookingsResponse> {
     const { userId, tutorId, page = 1, limit = 5, search, status, language, sort = 'Newest' } = params;
     const skip = (page - 1) * limit;
+
+    const now = new Date();
+    const historyThreshold = new Date(now.getTime() - 60 * 60 * 1000);
 
     const matchStage: Record<string, unknown> = {};
     if (userId) {
@@ -134,13 +133,27 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
           sessionId: 1,
           topic: { $ifNull: ['$session.topic', '$topic'] },
           language: { $ifNull: ['$session.language', '$language'] },
-          status: 1,
+          // Dynamically project confirmed bookings older than 1 hour as 'Incomplete'
+          status: {
+            $cond: {
+              if: {
+                $and: [
+                  { $eq: ['$status', 'confirmed'] },
+                  { $lte: [{ $ifNull: ['$session.scheduledAt', '$createdAt'] }, historyThreshold] },
+                ],
+              },
+              then: 'Incomplete',
+              else: '$status',
+            },
+          },
           date: { $ifNull: ['$session.scheduledAt', '$createdAt'] },
           price: { $ifNull: ['$session.price', '$price'] },
           otherPartyName: { $ifNull: [userId ? '$tutor.name' : '$user.name', userId ? 'Unknown Tutor' : 'Unknown User'] },
           otherPartyId: { $cond: { if: { $ne: [userId ? '$tutor._id' : '$user._id', null] }, then: { $toString: userId ? '$tutor._id' : '$user._id' }, else: null } },
           otherPartyRole: userId ? 'tutor' : 'user',
-          transactionId: '$payment.transactionId',
+          transactionId: { $ifNull: ['$payment.transactionId', 'N/A'] },
+          paymentProvider: { $ifNull: ['$payment.provider', 'N/A'] },
+          activeSeconds: { $ifNull: ['$activeSeconds', 0] },
           createdAt: 1,
         },
       },
@@ -155,19 +168,17 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
       ];
     }
 
-    const now = new Date();
-    // Bookings within 1 hour are considered "active/upcoming"
-    const historyThreshold = new Date(now.getTime() - 60 * 60 * 1000);
-
+    // Upcoming list strictly matches active confirmed bookings
     const upcomingPipeline = [
       ...basePipeline,
-      { $match: { date: { $gt: historyThreshold }, status: { $nin: ['Cancelled', 'Completed'] } } },
+      { $match: { status: 'confirmed' } },
       { $sort: { date: 1 as 1 | -1 } },
     ];
 
+    // History matches all non-active, cancelled, completed or incomplete bookings
     const historyPipeline = [
       ...basePipeline,
-      { $match: { $or: [{ date: { $lte: historyThreshold } }, { status: { $in: ['Cancelled', 'Completed'] } }] } },
+      { $match: { status: { $ne: 'confirmed' } } },
 
       ...(status && status !== 'All' ? [{ $match: { status } }] : []),
       ...(language && language !== 'All' ? [{ $match: { language } }] : []),
@@ -209,7 +220,7 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
    */
   async getDashboardStats(): Promise<{ totalEarnings: number; completedSessions: number; languageStats: { language: string; sessionCount: number }[] }> {
     const results = await this.model.aggregate([
-      { $match: { status: { $regex: /^completed$/i } } },
+      { $match: { status: { $regex: /^(completed|incomplete)$/i } } },
       {
         $lookup: {
           from: 'sessions',
@@ -231,24 +242,60 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
         },
       },
       {
+        $addFields: {
+          bookingPrice: { $ifNull: [{ $arrayElemAt: ['$session.price', 0] }, '$price'] },
+        },
+      },
+      {
+        $addFields: {
+          netEarning: {
+            $cond: {
+              if: { $regexMatch: { input: '$status', regex: /^completed$/i } },
+              then: '$bookingPrice',
+              else: {
+                $cond: {
+                  if: { $regexMatch: { input: '$status', regex: /^incomplete$/i } },
+                  then: {
+                    $cond: {
+                      if: { $lt: [{ $ifNull: ['$activeSeconds', 0] }, 900] },
+                      then: 0,
+                      else: {
+                        $cond: {
+                          if: { $lte: [{ $ifNull: ['$activeSeconds', 0] }, 1800] },
+                          then: { $multiply: ['$bookingPrice', 0.5] },
+                          else: '$bookingPrice',
+                        },
+                      },
+                    },
+                  },
+                  else: 0,
+                },
+              },
+            },
+          },
+        },
+      },
+      {
         $facet: {
           totals: [
             {
               $group: {
                 _id: null,
-                totalEarnings: { 
-                  $sum: { 
-                    $ifNull: [
-                      { $arrayElemAt: ['$session.price', 0] }, 
-                      '$price', 
-                    ], 
-                  }, 
+                totalEarnings: { $sum: '$netEarning' },
+                completedSessions: {
+                  $sum: {
+                    $cond: {
+                      if: { $regexMatch: { input: '$status', regex: /^completed$/i } },
+                      then: 1,
+                      else: 0,
+                    },
+                  },
                 },
-                completedSessions: { $sum: 1 },
               },
             },
           ],
           languageStats: [
+            { $match: { status: { $regex: /^completed$/i } } },
             {
               $group: {
                 _id: { $ifNull: [{ $arrayElemAt: ['$session.language', 0] }, '$language'] },
@@ -279,7 +326,7 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
     const results = await this.model.aggregate([
       { 
         $match: { 
-          status: { $regex: /^completed$/i },
+          status: { $regex: /^(completed|incomplete)$/i },
           createdAt: { $gte: startDate, $lt: endDate },
         }, 
       },
@@ -304,17 +351,52 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
         },
       },
       {
+        $addFields: {
+          bookingPrice: { $ifNull: [{ $arrayElemAt: ['$session.price', 0] }, '$price'] },
+        },
+      },
+      {
+        $addFields: {
+          netEarning: {
+            $cond: {
+              if: { $regexMatch: { input: '$status', regex: /^completed$/i } },
+              then: '$bookingPrice',
+              else: {
+                $cond: {
+                  if: { $regexMatch: { input: '$status', regex: /^incomplete$/i } },
+                  then: {
+                    $cond: {
+                      if: { $lt: [{ $ifNull: ['$activeSeconds', 0] }, 900] },
+                      then: 0,
+                      else: {
+                        $cond: {
+                          if: { $lte: [{ $ifNull: ['$activeSeconds', 0] }, 1800] },
+                          then: { $multiply: ['$bookingPrice', 0.5] },
+                          else: '$bookingPrice',
+                        },
+                      },
+                    },
+                  },
+                  else: 0,
+                },
+              },
+            },
+          },
+        },
+      },
+      {
         $group: {
           _id: null,
-          totalEarnings: { 
-            $sum: { 
-              $ifNull: [
-                { $arrayElemAt: ['$session.price', 0] }, 
-                '$price', 
-              ], 
-            }, 
+          totalEarnings: { $sum: '$netEarning' },
+          completedSessions: {
+            $sum: {
+              $cond: {
+                if: { $regexMatch: { input: '$status', regex: /^completed$/i } },
+                then: 1,
+                else: 0,
+              },
+            },
           },
-          completedSessions: { $sum: 1 },
         },
       },
     ]);
@@ -368,12 +450,69 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
           otherPartyAvatar: null,
           otherPartyId: { $cond: { if: { $ne: ['$user._id', null] }, then: { $toString: '$user._id' }, else: null } },
           otherPartyRole: { $literal: 'user' },
-          transactionId: '$payment.transactionId',
+          transactionId: { $ifNull: ['$payment.transactionId', 'N/A'] },
+          paymentProvider: { $ifNull: ['$payment.provider', 'N/A'] },
           createdAt: 1,
         },
       },
     ]);
 
     return results as IBookingDetail[];
+  }
+
+  /**
+   * Aggregates and calculates dashboard statistics for a specific tutor.
+   */
+  async getTutorDashboardStats(tutorId: string): Promise<{
+    totalEarnings: number;
+    completedSessionsCount: number;
+    totalTeachTime: number;
+    languageStats: { language: string; sessionCount: number }[];
+  }> {
+    const bookings = await this.model.find({
+      tutorId: new mongoose.Types.ObjectId(tutorId),
+      status: { $in: ['Completed', 'Incomplete', 'completed', 'incomplete'] },
+    });
+
+    let totalEarnings = 0;
+    let completedSessionsCount = 0;
+    let totalTeachTime = 0;
+    const languageCounts: Record<string, number> = {};
+
+    for (const booking of bookings) {
+      const status = booking.status.toLowerCase();
+      const activeSeconds = booking.activeSeconds || 0;
+      totalTeachTime += activeSeconds;
+
+      if (status === 'completed') {
+        completedSessionsCount++;
+        totalEarnings += booking.price;
+      } else if (status === 'incomplete') {
+        const activeMinutes = activeSeconds / 60;
+        if (activeMinutes >= 15 && activeMinutes <= 30) {
+          totalEarnings += booking.price / 2;
+        } else if (activeMinutes > 30) {
+          totalEarnings += booking.price;
+        }
+      }
+
+      if (booking.language) {
+        languageCounts[booking.language] = (languageCounts[booking.language] || 0) + 1;
+      }
+    }
+
+    const languageStats = Object.entries(languageCounts)
+      .map(([language, sessionCount]) => ({
+        language,
+        sessionCount,
+      }))
+      .sort((a, b) => b.sessionCount - a.sessionCount);
+
+    return {
+      totalEarnings,
+      completedSessionsCount,
+      totalTeachTime,
+      languageStats,
+    };
   }
 }

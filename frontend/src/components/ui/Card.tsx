@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import { FaVideo } from 'react-icons/fa';
 import { FiCheckCircle, FiSlash } from 'react-icons/fi';
 import { HiArrowRight } from 'react-icons/hi';
@@ -14,6 +15,14 @@ import { LanguageTags } from './card-components/LanguageTags';
 import { ReportSection } from './card-components/ReportSection';
 import { StatusBadge } from './card-components/StatusBadge';
 import { UserInfo } from './card-components/UserInfo';
+
+const formatDuration = (seconds?: number) => {
+  if (seconds === undefined || seconds === null) return '0h 0m 0s';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h}h ${m}m ${s}s`;
+};
 
 export type CardType = 'user' | 'tutor' | 'report' | 'session';
 
@@ -49,7 +58,7 @@ export interface TutorCardProps extends BaseCardProps {
   isVerified: boolean;
   rejectionReason: string | null;
   isLoading: boolean;
-  status: 'Active' | 'Blocked' | 'Available' | 'Booked' | 'Completed' | 'Cancelled';
+  status: 'Active' | 'Blocked' | 'Available' | 'Booked' | 'Completed' | 'Cancelled' | 'Incomplete';
   onViewDetails?: (id: string) => void;
   onBook?: (id: string) => void;
   onToggleStatus?: (id: string) => void;
@@ -61,6 +70,10 @@ export interface TutorCardProps extends BaseCardProps {
   onCancel?: (id: string) => void;
   onJoin?: (id: string) => void;
   avatarRole?: 'user' | 'tutor' | 'admin';
+  price?: number;
+  paymentProvider?: string;
+  activeSeconds?: number;
+  averageRating?: number;
 }
 
 interface ReportCardProps extends BaseCardProps {
@@ -132,7 +145,7 @@ const UserCard = ({
   className,
   onClick,
 }: UserCardProps) => (
-  <div 
+  <div
     className={`bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-all ${onClick ? 'cursor-pointer hover:border-rose-200' : ''} ${className || ''}`}
     onClick={onClick}
   >
@@ -142,9 +155,8 @@ const UserCard = ({
           <div className="relative" onClick={(e) => e.stopPropagation()}>
             <Avatar user={{ id: avatarId || id, name, role: 'user' }} size="md" editable={false} interactive={true} />
             {!hideOnlineStatus && (
-              <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm flex items-center justify-center ${
-                isOnline ? 'bg-green-500' : 'bg-rose-500'
-              }`}>
+              <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm flex items-center justify-center ${isOnline ? 'bg-green-500' : 'bg-rose-500'
+                }`}>
               </div>
             )}
           </div>
@@ -188,6 +200,39 @@ const UserCard = ({
   </div>
 );
 
+const PreciseStar = ({ fillPercentage }: { fillPercentage: number }) => {
+  const gradientId = useId();
+  const hasFill = fillPercentage > 0;
+  return (
+    <svg
+      className="w-3 h-3"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={hasFill ? '#f59e0b' : '#d1d5db'}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <defs>
+        <linearGradient id={gradientId}>
+          <stop offset={`${fillPercentage}%`} stopColor="#f59e0b" />
+          <stop offset={`${fillPercentage}%`} stopColor="#e5e7eb" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+        fill={hasFill ? `url(#${gradientId})` : 'none'}
+      />
+    </svg>
+  );
+};
+
+const getFillPercentage = (starIndex: number, rating: number) => {
+  if (rating >= starIndex) return 100;
+  if (rating <= starIndex - 1) return 0;
+  return (rating - (starIndex - 1)) * 100;
+};
+
 // Tutor card component
 const TutorCard = ({
   id,
@@ -215,118 +260,212 @@ const TutorCard = ({
   disabled,
   onClick,
   avatarRole = 'tutor',
-}: TutorCardProps) => (
-  <div 
-    onClick={onClick}
-    className={`bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-all relative group ${disabled ? 'opacity-60 grayscale-[0.2] pointer-events-none' : ''} ${onClick ? 'cursor-pointer' : ''} ${className || ''}`}
-  >
-    {onJoin && (
-      <div className="absolute top-3 right-3 z-10" onClick={(e) => e.stopPropagation()}>
-        <Button
-          variant="primary"
-          size={1.5}          className="bg-rose-500 hover:bg-rose-600 text-white border-none shadow-lg shadow-rose-200"
-          onClick={onJoin}
-          args={[id]}
-          icon={<FaVideo className="text-white" />}
-        >
-          Join Call
-        </Button>
-      </div>
-    )}
-    <div className="mb-4">
-      <div className="flex gap-3 min-w-0 items-start justify-between">
-        <div className="flex gap-3 min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
-          <Avatar user={{ id: avatarId || id, name, role: avatarRole }} size="md" interactive={true} />
-          <UserInfo
-            name={name}
-            email={email}
-            additionalInfo={yearsOfExperience}
-          />
+  price,
+  paymentProvider,
+  activeSeconds,
+  averageRating,
+}: TutorCardProps) => {
+  let displayPrice = price ?? 0;
+  let displayRefund = 0;
+  let isRefunded = false;
+
+  if (price !== undefined) {
+    if (avatarRole === 'user') {
+      if (status === 'Cancelled') {
+        displayPrice = 0;
+      } else if (status === 'Incomplete') {
+        const activeMinutes = (activeSeconds || 0) / 60;
+        if (activeMinutes < 15) {
+          displayPrice = 0;
+        } else if (activeMinutes <= 30) {
+          displayPrice = price / 2;
+        } else {
+          displayPrice = price;
+        }
+      }
+    } else {
+      if (status === 'Cancelled') {
+        displayRefund = price;
+        isRefunded = true;
+      } else if (status === 'Incomplete') {
+        isRefunded = true;
+        const activeMinutes = (activeSeconds || 0) / 60;
+        if (activeMinutes < 15) {
+          displayRefund = price;
+        } else if (activeMinutes <= 30) {
+          displayRefund = price / 2;
+        } else {
+          displayRefund = 0;
+        }
+      }
+    }
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      className={`bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-all relative group ${disabled ? 'opacity-60 grayscale-[0.2] pointer-events-none' : ''} ${onClick ? 'cursor-pointer' : ''} ${className || ''}`}
+    >
+      {onJoin && (
+        <div className="absolute top-3 right-3 z-10" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="primary"
+            size={1.5} className="bg-rose-500 hover:bg-rose-600 text-white border-none shadow-lg shadow-rose-200"
+            onClick={onJoin}
+            args={[id]}
+            icon={<FaVideo className="text-white" />}
+          >
+            Join Call
+          </Button>
         </div>
-        {!hideStatus && <StatusBadge status={status} />}
-      </div>
-    </div>
-
-    {knownLanguages && knownLanguages.length > 0 && (
-      <LanguageTags
-        knownLanguages={knownLanguages}
-        variant="default"
-        className="mb-4"
-      />
-    )}
-
-    <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-200">
-      <DateAndTime date={joinedAt} label={dateLabel || "Joined"} showTime={showTime} />
-
-      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-        {(onToggleStatus || onViewDetails || onBook || onCancel || customActions) && (
-          <div className="flex justify-end gap-1">
-            {customActions ? (
-              customActions
-            ) : (
-              <>
-                {onCancel && (
-                  <Button
-                    variant="outline"
-                    icon={<FiSlash size={22} />}
-                    className="h-fit rounded-lg p-0.5! transition-colors duration-200! text-gray-400 hover:text-red-500! hover:bg-red-50"
-                    onClick={onCancel}
-                    args={[id]}
-                    disabled={disabled}
-                    isLoading={isLoading}
-                  />
-                )}
-                {onBook && (
-                  <Button
-                    variant="outline"
-                    icon={<TbBrandBooking size={22} />}
-                    className="h-fit rounded-lg p-0.5! transition-colors duration-200! text-rose-500! hover:bg-rose-50!"
-                    onClick={onBook}
-                    args={[id]}
-                    disabled={disabled}
-                  />
-                )}
-                {onViewDetails && (
-                  <Button
-                    variant="outline"
-                    icon={viewDetailsIcon || <RiVerifiedBadgeFill size={23} />}
-                    isLoading={isLoading}
-                    className={`h-fit rounded-lg p-0.5! transition-colors duration-200! ${rejectionReason
-                      ? 'hover:bg-gray-50!'
-                      : 'hover:text-amber-500! hover:bg-amber-50!'
-                      } ${isVerified ? 'text-amber-500!' : 'text-gray-400!'}`}
-                    onClick={onViewDetails}
-                    args={[id]}
-                    disabled={disabled}
-                  />
-                )}
-                {onToggleStatus && (
-                  <Button
-                    variant="outline"
-                    icon={
-                      status === 'Active' ? (
-                        <FiSlash size={22} />
-                      ) : (
-                        <FiCheckCircle size={22} />
-                      )
-                    }
-                    className={`text-gray-400! h-fit rounded-lg p-0.5! transition-colors duration-200! ${status === 'Active'
-                      ? 'text-gray-400 hover:text-red-500! hover:bg-red-50'
-                      : 'text-gray-400 hover:text-green-500! hover:bg-green-50'
-                      }`}
-                    onClick={onToggleStatus}
-                    args={[id]}
-                    disabled={disabled}
-                  />
-                )}
-              </>
-            )}
+      )}
+      <div className="mb-4">
+        <div className="flex gap-3 min-w-0 items-start justify-between">
+          <div className="flex gap-3 min-w-0 flex-1">
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <Avatar user={{ id: avatarId || id, name, role: avatarRole }} size="md" interactive={true} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <UserInfo
+                name={name}
+                email={email}
+                additionalInfo={yearsOfExperience}
+              />
+              {averageRating !== undefined && (
+                <div className="flex items-center gap-0.5 mt-1">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <PreciseStar
+                        key={star}
+                        fillPercentage={getFillPercentage(star, averageRating)}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs font-bold text-gray-600 ml-1">
+                    {averageRating > 0 ? averageRating.toFixed(1) : 'New'}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-        )}
+          <div className="flex flex-col items-end gap-1">
+            {!hideStatus && <StatusBadge status={status} />}
+          </div>
+        </div>
+      </div>
+
+      {knownLanguages && knownLanguages.length > 0 && (
+        <LanguageTags
+          knownLanguages={knownLanguages}
+          variant="default"
+          className="mb-4"
+        />
+      )}
+
+      <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-200">
+        <div className="flex flex-col gap-1">
+          <DateAndTime date={joinedAt} label={dateLabel || "Joined"} showTime={showTime} />
+          {price !== undefined && (
+            <div className="flex items-center flex-wrap gap-2">
+              {avatarRole === 'user' ? (
+                <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                  {status === 'Completed' || status === 'Cancelled' || status === 'Incomplete'
+                    ? `Earned ₹${displayPrice}`
+                    : `Earning ₹${displayPrice}`}
+                </span>
+              ) : (
+                <>
+                  <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                    Paid ₹{price} {paymentProvider ? `via ${paymentProvider}` : ''}
+                  </span>
+                  {isRefunded && (
+                    <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                      Refunded ₹{displayRefund}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {activeSeconds !== undefined && (status === 'Completed' || status === 'Incomplete') && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                Duration: {formatDuration(activeSeconds)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+          {(onToggleStatus || onViewDetails || onBook || onCancel || customActions) && (
+            <div className="flex justify-end gap-1">
+              {customActions ? (
+                customActions
+              ) : (
+                <>
+                  {onCancel && (
+                    <Button
+                      variant="outline"
+                      icon={<FiSlash size={22} />}
+                      className="h-fit rounded-lg p-0.5! transition-colors duration-200! text-gray-400 hover:text-red-500! hover:bg-red-50"
+                      onClick={onCancel}
+                      args={[id]}
+                      disabled={disabled}
+                      isLoading={isLoading}
+                    />
+                  )}
+                  {onBook && (
+                    <Button
+                      variant="outline"
+                      icon={<TbBrandBooking size={22} />}
+                      className="h-fit rounded-lg p-0.5! transition-colors duration-200! text-rose-500! hover:bg-rose-50!"
+                      onClick={onBook}
+                      args={[id]}
+                      disabled={disabled}
+                    />
+                  )}
+                  {onViewDetails && (
+                    <Button
+                      variant="outline"
+                      icon={viewDetailsIcon || <RiVerifiedBadgeFill size={23} />}
+                      isLoading={isLoading}
+                      className={`h-fit rounded-lg p-0.5! transition-colors duration-200! ${rejectionReason
+                        ? 'hover:bg-gray-50!'
+                        : 'hover:text-amber-500! hover:bg-amber-50!'
+                        } ${isVerified ? 'text-amber-500!' : 'text-gray-400!'}`}
+                      onClick={onViewDetails}
+                      args={[id]}
+                      disabled={disabled}
+                    />
+                  )}
+                  {onToggleStatus && (
+                    <Button
+                      variant="outline"
+                      icon={
+                        status === 'Active' ? (
+                          <FiSlash size={22} />
+                        ) : (
+                          <FiCheckCircle size={22} />
+                        )
+                      }
+                      className={`text-gray-400! h-fit rounded-lg p-0.5! transition-colors duration-200! ${status === 'Active'
+                        ? 'text-gray-400 hover:text-red-500! hover:bg-red-50'
+                        : 'text-gray-400 hover:text-green-500! hover:bg-green-50'
+                        }`}
+                      onClick={onToggleStatus}
+                      args={[id]}
+                      disabled={disabled}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Report card component
 const ReportCard = ({
@@ -386,7 +525,7 @@ const ReportCard = ({
     {/* Bottom Action Footer */}
     <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
       <DateAndTime date={dateTime!} label="Reported on" showTime={true} />
-      
+
       {onViewDetails && (
         <Button
           variant="outline"

@@ -18,3 +18,11 @@ export interface IVerifyPaymentAndBookUseCase {
         currency: string;
     }): Promise<null>;
 }
+
+export interface IBookWithWalletUseCase {
+    execute(data: {
+        sessionId: string;
+        userId: string;
+        tutorId: string;
+    }): Promise<null>;
+}

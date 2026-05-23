@@ -20,6 +20,7 @@ export class FetchTutorsUseCase implements IFetchTutorsUseCase {
         query: string;
         sort: string;
         language: string;
+        minRating?: number;
     }): Promise<{
         totalTutorsCount: number;
         filteredTutorsCount: number;
@@ -36,6 +37,7 @@ export class FetchTutorsUseCase implements IFetchTutorsUseCase {
               data.sort,
               data.language,
               false, // isAdmin = false, to exclude sensitive details
+              data.minRating,
             );
 
     // Map entities to safe response DTOs

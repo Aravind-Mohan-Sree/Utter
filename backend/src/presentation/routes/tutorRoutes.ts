@@ -53,6 +53,7 @@ import { SessionController } from '~controllers/tutor/SessionController';
 import { BookingController } from '~controllers/user/BookingController';
 import { CreateBookingOrderUseCase } from '~use-cases/user/booking/CreateBookingOrderUseCase';
 import { VerifyPaymentAndBookUseCase } from '~use-cases/user/booking/VerifyPaymentAndBookUseCase';
+import { BookWithWalletUseCase } from '~use-cases/user/booking/BookWithWalletUseCase';
 import { GetBookingsUseCase } from '~use-cases/shared/GetBookingsUseCase';
 import { CancelBookingUseCase } from '~use-cases/shared/CancelBookingUseCase';
 import { BookingRepository } from '~concrete-repositories/BookingRepository';
@@ -70,6 +71,17 @@ import { AbuseReportRepository } from '~concrete-repositories/AbuseReportReposit
 import { CreateAbuseReportUseCase } from '~use-cases/shared/report/CreateAbuseReportUseCase';
 import { GetUserAbuseReportsUseCase } from '~use-cases/shared/report/GetUserAbuseReportsUseCase';
 import { AbuseReportController } from '~controllers/shared/AbuseReportController';
+import { FeedbackRepository } from '~concrete-repositories/FeedbackRepository';
+import { SubmitFeedbackUseCase } from '~use-cases/tutor/SubmitFeedbackUseCase';
+import { GetFeedbackUseCase } from '~use-cases/shared/GetFeedbackUseCase';
+import { GetUserFeedbackFeedUseCase } from '~use-cases/user/GetUserFeedbackFeedUseCase';
+import { GetUserLanguageProgressUseCase } from '~use-cases/user/GetUserLanguageProgressUseCase';
+import { FeedbackController } from '~controllers/shared/FeedbackController';
+
+import { ReviewRepository } from '~concrete-repositories/ReviewRepository';
+import { GetTutorDashboardUseCase } from '~use-cases/tutor/tutor-management/GetTutorDashboardUseCase';
+import { GetReviewsUseCase } from '~use-cases/user/reviews/GetReviewsUseCase';
+import { TutorDashboardController } from '~controllers/tutor/TutorDashboardController';
 
 // repositories
 const userRepository = new UserRepository();
@@ -80,6 +92,8 @@ const bookingRepository = new BookingRepository();
 const walletRepository = new WalletRepository();
 const notificationRepository = new NotificationRepository();
 const abuseReportRepository = new AbuseReportRepository();
+const feedbackRepository = new FeedbackRepository();
+const reviewRepository = new ReviewRepository();
 
 // services
 const mailService = new MailService();
@@ -249,7 +263,17 @@ const verifyPaymentAndBookUseCase = new VerifyPaymentAndBookUseCase(
   createNotificationUseCase,
   redisService,
 );
-const getBookingsUseCase = new GetBookingsUseCase(bookingRepository);
+const bookWithWalletUseCase = new BookWithWalletUseCase(
+  bookingRepository,
+  sessionRepository,
+  userRepository,
+  tutorRepository,
+  mailService,
+  walletRepository,
+  createNotificationUseCase,
+  redisService,
+);
+const getBookingsUseCase = new GetBookingsUseCase(bookingRepository, sessionRepository, walletRepository);
 const cancelBookingUseCase = new CancelBookingUseCase(
   bookingRepository,
   sessionRepository,
@@ -264,9 +288,41 @@ const pingBookingUseCase = new PingBookingUseCase(bookingRepository, sessionRepo
 const bookingController = new BookingController(
   createBookingOrderUseCase,
   verifyPaymentAndBookUseCase,
+  bookWithWalletUseCase,
   getBookingsUseCase,
   cancelBookingUseCase,
   pingBookingUseCase,
+);
+
+const submitFeedbackUseCase = new SubmitFeedbackUseCase(
+  feedbackRepository,
+  bookingRepository,
+  sessionRepository,
+);
+const getFeedbackUseCase = new GetFeedbackUseCase(
+  feedbackRepository,
+  bookingRepository,
+);
+const getUserFeedbackFeedUseCase = new GetUserFeedbackFeedUseCase(feedbackRepository);
+const getUserLanguageProgressUseCase = new GetUserLanguageProgressUseCase(feedbackRepository);
+
+const feedbackController = new FeedbackController(
+  submitFeedbackUseCase,
+  getFeedbackUseCase,
+  getUserFeedbackFeedUseCase,
+  getUserLanguageProgressUseCase,
+  dataValidatorService,
+);
+
+const getReviewsUseCase = new GetReviewsUseCase(reviewRepository);
+
+const getTutorDashboardUseCase = new GetTutorDashboardUseCase(
+  bookingRepository,
+  reviewRepository,
+);
+const tutorDashboardController = new TutorDashboardController(
+  getTutorDashboardUseCase,
+  getReviewsUseCase,
 );
 
 // wire auth middlewares
@@ -342,10 +398,18 @@ router.post('/create-session', auth.verify(), sessionController.createSession);
 router.get('/get-sessions', auth.verify(), sessionController.getSessions);
 router.delete('/cancel-session/:sessionId', auth.verify(), sessionController.cancelSession);
 
+// dashboard
+router.get('/dashboard', auth.verify(), tutorDashboardController.getDashboardData);
+router.get('/reviews', auth.verify(), tutorDashboardController.getReviews);
+
 // booking
 router.get('/bookings', auth.verify(), bookingController.getBookings);
 router.patch('/bookings/:id/cancel', auth.verify(), bookingController.cancelBooking);
 router.post('/bookings/:id/ping', auth.verify(), bookingController.pingSession);
+
+// feedback
+router.post('/feedback', auth.verify(), feedbackController.submitFeedback);
+router.get('/feedback/booking/:bookingId', auth.verify(), feedbackController.getFeedbackByBooking);
 
 // wallet
 router.get('/wallet', auth.verify(), walletController.getTransactions);

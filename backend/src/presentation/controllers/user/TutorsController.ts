@@ -31,6 +31,7 @@ export class TutorsController {
         query: req.query.query as string,
         sort: req.query.sort as string,
         language: req.query.language as string,
+        minRating: req.query.minRating as string,
         filter: '',
       });
 
@@ -40,6 +41,7 @@ export class TutorsController {
         query: queryData.query,
         sort: queryData.sort,
         language: queryData.language,
+        minRating: queryData.minRating,
       });
 
       res.status(httpStatusCode.OK).json({

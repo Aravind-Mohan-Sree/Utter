@@ -1,6 +1,6 @@
 'use client';
 
-import { FiSearch } from 'react-icons/fi';
+import { FiSearch, FiX } from 'react-icons/fi';
 
 import { Dropdown } from '~components/ui/Dropdown';
 
@@ -17,6 +17,9 @@ interface SearchAndFilterProps {
   onLanguageSelect?: (language: string) => void;
   languageClassName?: string;
   languageOptionsClassName?: string;
+  ratingOptions?: string[];
+  selectedRating?: string;
+  onRatingSelect?: (rating: string) => void;
 }
 
 export const SearchAndFilter = ({
@@ -32,6 +35,9 @@ export const SearchAndFilter = ({
   onLanguageSelect,
   languageClassName,
   languageOptionsClassName,
+  ratingOptions,
+  selectedRating,
+  onRatingSelect,
 }: SearchAndFilterProps) => {
   return (
     <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${className ?? 'mb-8'}`}>
@@ -42,8 +48,16 @@ export const SearchAndFilter = ({
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-rose-400 transition-all text-sm text-rose-400 placeholder:text-gray-400"
+          className="w-full pl-10 pr-10 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-rose-400 transition-all text-sm text-rose-400 placeholder:text-gray-400"
         />
+        {searchValue && (
+          <button
+            onClick={() => onSearchChange('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-400 transition-colors cursor-pointer"
+          >
+            <FiX size={16} />
+          </button>
+        )}
       </div>
       <div className="flex gap-4">
         {languageOptions && selectedLanguage && onLanguageSelect && (
@@ -53,6 +67,13 @@ export const SearchAndFilter = ({
             onSelect={onLanguageSelect}
             className={languageClassName}
             optionsClassName={languageOptionsClassName}
+          />
+        )}
+        {ratingOptions && selectedRating !== undefined && onRatingSelect && (
+          <Dropdown
+            options={ratingOptions}
+            selected={selectedRating}
+            onSelect={onRatingSelect}
           />
         )}
         <Dropdown

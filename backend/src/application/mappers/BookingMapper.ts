@@ -15,6 +15,8 @@ export class BookingMapper {
       otherPartyId: data.otherPartyId,
       otherPartyRole: data.otherPartyRole,
       transactionId: data.transactionId,
+      paymentProvider: data.paymentProvider,
+      activeSeconds: data.activeSeconds,
       createdAt: data.createdAt,
     };
   }
