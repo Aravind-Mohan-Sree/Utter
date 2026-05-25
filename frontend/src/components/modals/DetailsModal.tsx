@@ -164,7 +164,7 @@ const TutorModalContent = ({
             </h5>
             <div className="space-y-3">
               {/* Display existing certificates */}
-              {certificates && certificates.length > 0 ? (
+              {certificates && certificates.length > 0 && !tutor.rejectionReason ? (
                 certificates.map((url, index) => {
                   const type = certificateTypes[index] || 'Other';
                   return (
