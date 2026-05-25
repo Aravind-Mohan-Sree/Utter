@@ -9,7 +9,7 @@ import Avatar from '~components/ui/Avatar';
 import { UserInfo } from '../ui/card-components';
 import { BaseModal } from './BaseModal';
 import { PDFPreviewModal } from './PDFPreviewModal';
- 
+
 export type ModalType = 'tutor' | 'report';
 
 interface Message {
