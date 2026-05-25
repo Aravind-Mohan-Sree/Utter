@@ -19,7 +19,10 @@ export class RejectUseCase implements IRejectUseCase {
    * @param rejectionReason The reason for rejection.
    * @returns The tutor's Google ID if they have one, used for further processing in controller.
    */
-  async execute(id: string, rejectionReason: string): Promise<string | null> {
+  async execute(
+    id: string,
+    rejectionReason: string,
+  ): Promise<{ googleId: string | null; certificates: string[] } | null> {
     const tutor = await this._tutorRepo.findOneById(id);
 
     if (!tutor) return null;
@@ -39,6 +42,9 @@ export class RejectUseCase implements IRejectUseCase {
     await this._mailService.sendVerificationUpdate(tutor.name, tutor.email, cleanedReason);
     await this._tutorRepo.updateOneById(id, partialTutor);
 
-    return tutor.googleId;
+    return {
+      googleId: tutor.googleId,
+      certificates: tutor.certificates || [],
+    };
   }
 }

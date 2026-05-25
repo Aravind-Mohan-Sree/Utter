@@ -22,7 +22,10 @@ export interface IApproveUseCase {
 }
 
 export interface IRejectUseCase {
-  execute(id: string, rejectionReason: string): Promise<string | null>;
+  execute(
+    id: string,
+    rejectionReason: string,
+  ): Promise<{ googleId: string | null; certificates: string[] } | null>;
 }
 
 export interface IHandleLanguageVerificationUseCase {

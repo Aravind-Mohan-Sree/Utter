@@ -8,7 +8,7 @@ export class ResubmitAccountUseCase implements IResubmitAccountUseCase {
 
   async execute(
     data: resubmitAccountDTO,
-  ): Promise<{ oldId: string; newId: string; googleId: string }> {
+  ): Promise<{ oldId: string; newId: string; googleId: string; certificates: string[] }> {
     const { email } = data;
     let tutor = await this._tutorRepo.findOneByField({ email });
     const partialTutor: Partial<Tutor> = {
@@ -22,6 +22,7 @@ export class ResubmitAccountUseCase implements IResubmitAccountUseCase {
       oldId: tutor?.id as string,
       newId: tutor?.id as string,
       googleId: tutor?.googleId as string,
+      certificates: tutor?.certificates || [],
     };
   }
 }

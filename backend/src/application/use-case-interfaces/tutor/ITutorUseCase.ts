@@ -19,7 +19,7 @@ export interface IFinishRegisterTutorUseCase {
 export interface IResubmitAccountUseCase {
   execute(
     data: resubmitAccountDTO,
-  ): Promise<{ oldId: string; newId: string; googleId: string }>;
+  ): Promise<{ oldId: string; newId: string; googleId: string; certificates: string[] }>;
 }
 
 export interface IRegisterTutorFromPendingUseCase {

@@ -189,7 +189,7 @@ export class AuthController {
       }
 
       // Process resubmission logic
-      const { oldId, newId, googleId } =
+      const { oldId, newId, googleId, certificates } =
         await this._resubmitAccountUseCase.execute(data);
 
       // If they registered via Google, move their temporary avatar
@@ -203,19 +203,27 @@ export class AuthController {
         );
       }
 
+      // Dynamically parse the actual S3 filename for the certificate
+      const certUrl = certificates && certificates.length > 0
+        ? certificates[certificates.length - 1]
+        : null;
+      const certFilename = (certUrl
+        ? certUrl.split('/').pop()?.split('.')[0]
+        : `${oldId}_1`) || `${oldId}_1`;
+
       // Transition existing or new files to permanent storage
       await this._updateFile.execute(
         introVideoFile
           ? filePrefixes.TEMP_REJECTED_TUTOR_CERTIFICATE
           : filePrefixes.TEMP_REJECTED_TUTOR_VIDEO,
         introVideoFile ? filePrefixes.TUTOR_CERTIFICATE : filePrefixes.TUTOR_VIDEO,
-        oldId,
-        newId,
+        introVideoFile ? certFilename : oldId,
+        introVideoFile ? certFilename : newId,
         introVideoFile ? contentTypes.APPLICATION_PDF : contentTypes.VIDEO_MP4,
       );
       await this._uploadFile.execute(
         introVideoFile ? filePrefixes.TUTOR_VIDEO : filePrefixes.TUTOR_CERTIFICATE,
-        oldId,
+        introVideoFile ? oldId : certFilename,
         introVideoFile ? introVideoFile.path : certificateFile!.path,
         introVideoFile ? contentTypes.VIDEO_MP4 : contentTypes.APPLICATION_PDF,
       );

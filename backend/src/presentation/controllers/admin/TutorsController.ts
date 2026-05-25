@@ -115,36 +115,48 @@ export class TutorsController {
       });
       const dueToVideo = rejectionReason.split('/')[0] === 'video';
 
-      const googleId = await this._rejectUC.execute(id, rejectionReason);
+      const result = await this._rejectUC.execute(id, rejectionReason);
 
-      // If tutor registered with Google, handle their avatar
-      if (googleId) {
+      if (result) {
+        const { googleId, certificates } = result;
+
+        // If tutor registered with Google, handle their avatar
+        if (googleId) {
+          await this._updateFileUC.execute(
+            filePrefixes.TUTOR_AVATAR,
+            filePrefixes.TEMP_REJECTED_TUTOR_AVATAR,
+            id,
+            id,
+            contentTypes.IMAGE_JPEG,
+          );
+        }
+
+        // Dynamically parse the actual S3 filename for the certificate
+        const certUrl = certificates && certificates.length > 0
+          ? certificates[certificates.length - 1]
+          : null;
+        const certFilename = (certUrl
+          ? certUrl.split('/').pop()?.split('.')[0]
+          : `${id}_1`) || `${id}_1`;
+
+        // Move the valid file (video or certificate) to a temporary rejected location
         await this._updateFileUC.execute(
-          filePrefixes.TUTOR_AVATAR,
-          filePrefixes.TEMP_REJECTED_TUTOR_AVATAR,
-          id,
-          id,
-          contentTypes.IMAGE_JPEG,
+          dueToVideo ? filePrefixes.TUTOR_CERTIFICATE : filePrefixes.TUTOR_VIDEO,
+          dueToVideo
+            ? filePrefixes.TEMP_REJECTED_TUTOR_CERTIFICATE
+            : filePrefixes.TEMP_REJECTED_TUTOR_VIDEO,
+          dueToVideo ? certFilename : id,
+          dueToVideo ? certFilename : id,
+          dueToVideo ? contentTypes.APPLICATION_PDF : contentTypes.VIDEO_MP4,
+        );
+        
+        // Delete the invalid file (the one that was the cause of rejection)
+        await this._deleteFileUC.execute(
+          dueToVideo ? filePrefixes.TUTOR_VIDEO : filePrefixes.TUTOR_CERTIFICATE,
+          dueToVideo ? id : certFilename,
+          dueToVideo ? contentTypes.VIDEO_MP4 : contentTypes.APPLICATION_PDF,
         );
       }
-
-      // Move the invalid file (video or certificate) to a temporary rejected location
-      await this._updateFileUC.execute(
-        dueToVideo ? filePrefixes.TUTOR_CERTIFICATE : filePrefixes.TUTOR_VIDEO,
-        dueToVideo
-          ? filePrefixes.TEMP_REJECTED_TUTOR_CERTIFICATE
-          : filePrefixes.TEMP_REJECTED_TUTOR_VIDEO,
-        id,
-        id,
-        dueToVideo ? contentTypes.APPLICATION_PDF : contentTypes.VIDEO_MP4,
-      );
-      
-      // Delete the other file (the one that wasn't the cause of rejection)
-      await this._deleteFileUC.execute(
-        dueToVideo ? filePrefixes.TUTOR_VIDEO : filePrefixes.TUTOR_CERTIFICATE,
-        id,
-        dueToVideo ? contentTypes.VIDEO_MP4 : contentTypes.APPLICATION_PDF,
-      );
 
       res.status(httpStatusCode.OK).json({
         message: successMessage.VERIFIED,
