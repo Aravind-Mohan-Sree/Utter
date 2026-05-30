@@ -15,6 +15,7 @@ export interface Booking {
     transactionId?: string;
     paymentProvider?: string;
     activeSeconds?: number;
+    duration?: number;
 }
 
 export interface GetBookingsResponse {

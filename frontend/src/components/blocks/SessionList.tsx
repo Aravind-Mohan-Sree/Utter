@@ -14,6 +14,7 @@ export interface Session {
     status: string;
     scheduledAt: string;
     price: number;
+    duration?: number;
 }
 
 interface SessionListProps {
@@ -199,6 +200,7 @@ export default function SessionList({
                         isLoading={cancellingId === session.id || bookingId === session.id}
                         hideStatus={!showStatus}
                         hidePrice={!showPrice}
+                        duration={session.duration}
                     />
                 ))}
                 {sessions.length === 0 && (

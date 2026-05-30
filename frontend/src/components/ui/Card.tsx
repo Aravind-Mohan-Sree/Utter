@@ -74,6 +74,7 @@ export interface TutorCardProps extends BaseCardProps {
   paymentProvider?: string;
   activeSeconds?: number;
   averageRating?: number;
+  duration?: number;
 }
 
 interface ReportCardProps extends BaseCardProps {
@@ -109,6 +110,7 @@ export interface SessionCardProps extends BaseCardProps {
   hideStatus?: boolean;
   hidePrice?: boolean;
   isLoading?: boolean;
+  duration?: number;
 }
 
 type CardProps = UserCardProps | TutorCardProps | ReportCardProps | SessionCardProps;
@@ -264,6 +266,7 @@ const TutorCard = ({
   paymentProvider,
   activeSeconds,
   averageRating,
+  duration
 }: TutorCardProps) => {
   let displayPrice = price ?? 0;
   let displayRefund = 0;
@@ -355,11 +358,17 @@ const TutorCard = ({
       </div>
 
       {knownLanguages && knownLanguages.length > 0 && (
-        <LanguageTags
-          knownLanguages={knownLanguages}
-          variant="default"
-          className="mb-4"
-        />
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+          <LanguageTags
+            knownLanguages={knownLanguages}
+            variant="default"
+          />
+          {dateLabel && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">
+              {duration ? `${duration} mins` : '60 mins'}
+            </span>
+          )}
+        </div>
       )}
 
       <div className="flex items-center justify-between pt-3 mt-3 border-t border-gray-200">
@@ -553,7 +562,8 @@ const SessionCard = ({
   hideStatus,
   hidePrice,
   disabled,
-  isLoading
+  isLoading,
+  duration
 }: SessionCardProps) => (
   <div className={`bg-white rounded-2xl border border-gray-100 p-3 shadow-sm hover:shadow-md transition-all relative group ${disabled || isLoading ? 'opacity-60 grayscale-[0.2] pointer-events-none' : ''} ${className || ''}`}>
     <div className="flex justify-between items-start mb-2">
@@ -573,8 +583,11 @@ const SessionCard = ({
       </div>
     </div>
 
-    <div className="mb-3">
+    <div className="mb-3 flex items-center gap-2 flex-wrap">
       <LanguageTags knownLanguages={[language]} variant="default" />
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-800 border border-gray-200">
+        {duration ? `${duration} mins` : '60 mins'}
+      </span>
     </div>
 
     <div className="pt-3 border-t border-gray-100 flex items-center justify-between">

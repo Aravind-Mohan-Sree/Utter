@@ -18,6 +18,7 @@ export class BookingMapper {
       paymentProvider: data.paymentProvider,
       activeSeconds: data.activeSeconds,
       createdAt: data.createdAt,
+      duration: data.duration,
     };
   }
 }

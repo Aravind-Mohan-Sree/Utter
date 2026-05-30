@@ -18,6 +18,7 @@ export interface IBookingDetail {
     paymentProvider: string;
     activeSeconds: number;
     createdAt: Date;
+    duration?: number;
 }
 
 export interface IFetchBookingsParams {

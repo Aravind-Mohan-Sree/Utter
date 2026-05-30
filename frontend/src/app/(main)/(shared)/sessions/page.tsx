@@ -377,6 +377,7 @@ export default function SessionsPage() {
                       className="bg-white/50 backdrop-blur-sm hover:border-rose-200"
                       onCancel={undefined}
                       onJoin={canJoin(booking.date) ? () => handleJoin(booking.id, booking.otherPartyId, booking.otherPartyName) : undefined}
+                      duration={booking.duration}
                     />
                   </div>
                 ))}
@@ -480,6 +481,7 @@ export default function SessionsPage() {
                           />
                         ) : undefined
                       }
+                      duration={booking.duration}
                     />
                   ))}
                 </div>

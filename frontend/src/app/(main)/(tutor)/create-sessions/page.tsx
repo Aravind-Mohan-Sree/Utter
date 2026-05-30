@@ -65,6 +65,7 @@ export default function CreateSessionsPage() {
   const [repeatUntilDate, setRepeatUntilDate] = useState('');
   const [leaveDateInput, setLeaveDateInput] = useState('');
   const [leaveDates, setLeaveDates] = useState<string[]>([]);
+  const [preferredInterval, setPreferredInterval] = useState<number>(15);
 
   const [existingSessionsMap, setExistingSessionsMap] = useState<
     Record<string, Session[]>
@@ -235,9 +236,7 @@ export default function CreateSessionsPage() {
     }
 
     setStartFromDate(date);
-    if (repeatUntilDate && date > repeatUntilDate) {
-      setRepeatUntilDate(date);
-    }
+    setRepeatUntilDate(date);
   };
 
   const handleRepeatUntilDateChange = (
@@ -257,47 +256,30 @@ export default function CreateSessionsPage() {
     setRepeatUntilDate(date);
   };
 
-  const intervalDisplay = useMemo(() => {
-    if (!startTime || !sessionCount) return '--';
-
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const startTimeMinutes = hours * 60 + minutes;
-    const latestStartTime = 17 * 60;
-    const sessionDuration = 60;
-
-    const availableTime = latestStartTime - startTimeMinutes;
-    const count = Number(sessionCount);
-
-    if (count <= 1) return '--';
-
-    const timeForPreviousSessions = (count - 1) * sessionDuration;
-    const availableTimeForIntervals = availableTime - timeForPreviousSessions;
-
-    if (availableTimeForIntervals < 0) return '--';
-
-    const interval = Math.floor(availableTimeForIntervals / (count - 1));
-
-    if (interval >= 60) {
-      const h = Math.floor(interval / 60);
-      const m = interval % 60;
-      return `${h} hour${h > 1 ? 's' : ''} ${m > 0 ? `${m} min` : ''}`;
-    }
-    if (interval > 0) return `${interval} minutes`;
-    return '--';
-  }, [startTime, sessionCount]);
-
   const maxSessions = useMemo(() => {
-    if (!startTime) return 6;
+    if (!startTime) return 7;
     const [hours, minutes] = startTime.split(':').map(Number);
     const startTimeMinutes = hours * 60 + minutes;
     const latestStartTime = 17 * 60;
     const sessionDuration = 60;
 
     const max = Math.floor(
-      1 + (latestStartTime - startTimeMinutes) / sessionDuration,
+      1 + (latestStartTime - startTimeMinutes) / (sessionDuration + preferredInterval),
     );
-    return Math.min(Math.max(max, 1), 6);
-  }, [startTime]);
+    return Math.min(Math.max(max, 1), 7);
+  }, [startTime, preferredInterval]);
+
+  useEffect(() => {
+    if (sessionCount !== '' && sessionCount > maxSessions) {
+      setSessionCount(maxSessions);
+      if (languages.length > maxSessions) {
+        setLanguages((prev) => prev.slice(0, maxSessions));
+      }
+      if (topics.length > maxSessions) {
+        setTopics((prev) => prev.slice(0, maxSessions));
+      }
+    }
+  }, [maxSessions, sessionCount, languages.length, topics.length]);
 
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = e.target.value;
@@ -482,6 +464,24 @@ export default function CreateSessionsPage() {
       return;
     }
 
+    const now = new Date();
+    const todayStr = formatLocalDate(now);
+    if (datesToCheck.includes(todayStr)) {
+      const minStart = now.getHours() * 60 + now.getMinutes() + 60;
+      const [startH, startM] = startTime.split(':').map(Number);
+      const startMin = startH * 60 + startM;
+      if (startMin < minStart) {
+        const minHour = Math.floor(minStart / 60);
+        const minMin = minStart % 60;
+        const minTimeStr = `${String(minHour).padStart(2, '0')}:${String(minMin).padStart(2, '0')}`;
+        const minTimeAmPm = formatTimeWithAmPm(minTimeStr);
+        utterToast.error(
+          `For today's sessions, the Starting Time of First Session must be at least 1 hour from now (after ${minTimeAmPm}).`,
+        );
+        return;
+      }
+    }
+
     try {
       const fetchResults = await Promise.all(
         datesToCheck.map((d) => getSessions(d)),
@@ -516,10 +516,10 @@ export default function CreateSessionsPage() {
       const [startH, startM] = startTime.split(':').map(Number);
       const startMin = startH * 60 + startM;
 
+      const spacing = 60 + preferredInterval;
+
       const newSessionsRequests: CreateSessionRequest[] = [];
       let totalSkipped = 0;
-      const now = new Date();
-      const todayStr = formatLocalDate(now);
 
       for (const dateStr of datesToCheck) {
         if (leaveDates.includes(dateStr)) continue;
@@ -534,7 +534,7 @@ export default function CreateSessionsPage() {
 
         let sessionsCreatedForThisDay = 0;
         for (let i = 0; i < Number(sessionCount); i++) {
-          const targetStart = startMin + i * 75;
+          const targetStart = startMin + i * spacing;
           const targetEnd = targetStart + 60;
 
           const latestEndLimit = 18 * 60;
@@ -729,26 +729,32 @@ export default function CreateSessionsPage() {
                 onChange={handleSessionCountChange}
               >
                 <option value="">Select count</option>
-                {[1, 2, 3, 4, 5, 6].map((num) => (
+                {[1, 2, 3, 4, 5, 6, 7].map((num) => (
                   <option key={num} value={num} disabled={num > maxSessions}>
                     {num}
                   </option>
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1 italic">
-                Maximum 6 sessions allowed per day
+                Maximum 7 sessions allowed per day
               </p>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <label className="block text-sm font-semibold text-gray-700">
                 Interval Between Sessions
               </label>
-              <div className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-700 text-center font-medium">
-                {intervalDisplay}
-              </div>
+              <select
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-rose-400 focus:ring-2 focus:ring-rose-100 outline-none transition-all bg-white text-gray-900 appearance-none cursor-pointer"
+                value={preferredInterval}
+                onChange={(e) => setPreferredInterval(Number(e.target.value))}
+              >
+                <option value={15}>15 minutes</option>
+                <option value={30}>30 minutes</option>
+                <option value={45}>45 minutes</option>
+              </select>
               <p className="text-xs text-gray-500 mt-1 italic">
-                Calculated automatically based on start time and session count
+                Choose preferred gap between scheduled sessions
               </p>
             </div>
 

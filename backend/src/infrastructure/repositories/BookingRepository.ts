@@ -155,6 +155,7 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
           paymentProvider: { $ifNull: ['$payment.provider', 'N/A'] },
           activeSeconds: { $ifNull: ['$activeSeconds', 0] },
           createdAt: 1,
+          duration: { $ifNull: ['$session.duration', 60] },
         },
       },
     ];
@@ -453,6 +454,7 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
           transactionId: { $ifNull: ['$payment.transactionId', 'N/A'] },
           paymentProvider: { $ifNull: ['$payment.provider', 'N/A'] },
           createdAt: 1,
+          duration: { $ifNull: [{ $arrayElemAt: ['$session.duration', 0] }, 60] },
         },
       },
     ]);

@@ -100,6 +100,7 @@ export default function TutorDetailsPage() {
         status: s.status,
         scheduledAt: s.scheduledAt,
         price: s.price,
+        duration: s.duration,
       }));
       setSessions(mappedSessions);
     } catch (error) {
