@@ -118,6 +118,18 @@ export class MailService implements IMailService {
   }
 
   /**
+   * Notifies participants when a session is rescheduled.
+   */
+  async sendBookingRescheduled(name: string, email: string, sessionTopic: string, language: string, oldDate: string, newDate: string): Promise<void> {
+    const body = `The session "<b>${sessionTopic}</b>" (${language}) has been rescheduled.<br><br><b>Old Time:</b> ${oldDate}<br><b>New Time:</b> ${newDate}`;
+    await this.send({
+      to: email,
+      subject: `Session Rescheduled: ${sessionTopic}`,
+      html: emailTemplate(name, body),
+    });
+  }
+
+  /**
    * Notifies a reported user of the action taken or the reporter of the status update.
    */
   async sendReportUpdate(name: string, email: string, status: 'Resolved' | 'Rejected', reason?: string): Promise<void> {

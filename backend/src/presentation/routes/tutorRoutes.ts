@@ -56,6 +56,7 @@ import { VerifyPaymentAndBookUseCase } from '~use-cases/user/booking/VerifyPayme
 import { BookWithWalletUseCase } from '~use-cases/user/booking/BookWithWalletUseCase';
 import { GetBookingsUseCase } from '~use-cases/shared/GetBookingsUseCase';
 import { CancelBookingUseCase } from '~use-cases/shared/CancelBookingUseCase';
+import { RescheduleBookingUseCase } from '~use-cases/shared/RescheduleBookingUseCase';
 import { BookingRepository } from '~concrete-repositories/BookingRepository';
 import { WalletRepository } from '~concrete-repositories/WalletRepository';
 import { RazorpayService } from '~concrete-services/RazorpayService';
@@ -283,6 +284,16 @@ const cancelBookingUseCase = new CancelBookingUseCase(
   mailService,
   createNotificationUseCase,
 );
+const rescheduleBookingUseCase = new RescheduleBookingUseCase(
+  bookingRepository,
+  sessionRepository,
+  userRepository,
+  tutorRepository,
+  walletRepository,
+  mailService,
+  createNotificationUseCase,
+  redisService,
+);
 const pingBookingUseCase = new PingBookingUseCase(bookingRepository, sessionRepository, redisService, walletRepository);
 
 const bookingController = new BookingController(
@@ -292,6 +303,7 @@ const bookingController = new BookingController(
   getBookingsUseCase,
   cancelBookingUseCase,
   pingBookingUseCase,
+  rescheduleBookingUseCase,
 );
 
 const submitFeedbackUseCase = new SubmitFeedbackUseCase(
@@ -405,6 +417,7 @@ router.get('/reviews', auth.verify(), tutorDashboardController.getReviews);
 // booking
 router.get('/bookings', auth.verify(), bookingController.getBookings);
 router.patch('/bookings/:id/cancel', auth.verify(), bookingController.cancelBooking);
+router.patch('/bookings/:id/reschedule', auth.verify(), bookingController.rescheduleBooking);
 router.post('/bookings/:id/ping', auth.verify(), bookingController.pingSession);
 
 // feedback

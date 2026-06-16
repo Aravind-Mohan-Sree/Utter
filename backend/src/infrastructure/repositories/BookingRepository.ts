@@ -34,6 +34,7 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
       topic: entity.topic,
       language: entity.language,
       price: entity.price,
+      rescheduleCount: entity.rescheduleCount,
     };
   }
 
@@ -52,6 +53,7 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
       doc.topic,
       doc.language,
       doc.price,
+      doc.rescheduleCount ?? 0,
       String(doc._id),
       doc.createdAt,
       doc.updatedAt,
@@ -156,6 +158,7 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
           activeSeconds: { $ifNull: ['$activeSeconds', 0] },
           createdAt: 1,
           duration: { $ifNull: ['$session.duration', 60] },
+          rescheduleCount: { $ifNull: ['$rescheduleCount', 0] },
         },
       },
     ];
@@ -455,6 +458,7 @@ export class BookingRepository extends BaseRepository<Booking, IBooking> impleme
           paymentProvider: { $ifNull: ['$payment.provider', 'N/A'] },
           createdAt: 1,
           duration: { $ifNull: [{ $arrayElemAt: ['$session.duration', 0] }, 60] },
+          rescheduleCount: { $ifNull: ['$rescheduleCount', 0] },
         },
       },
     ]);

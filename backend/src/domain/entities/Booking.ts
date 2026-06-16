@@ -14,6 +14,7 @@ export class Booking {
     public topic = 'Unknown Topic',
     public language = 'N/A',
     public price = 0,
+    public rescheduleCount = 0,
     public id?: string,
     public createdAt?: Date,
     public updatedAt?: Date,

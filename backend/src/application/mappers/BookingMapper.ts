@@ -19,6 +19,7 @@ export class BookingMapper {
       activeSeconds: data.activeSeconds,
       createdAt: data.createdAt,
       duration: data.duration,
+      rescheduleCount: data.rescheduleCount,
     };
   }
 }

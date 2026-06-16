@@ -19,6 +19,7 @@ export interface IBookingDetail {
     activeSeconds: number;
     createdAt: Date;
     duration?: number;
+    rescheduleCount: number;
 }
 
 export interface IFetchBookingsParams {

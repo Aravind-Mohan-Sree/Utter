@@ -58,7 +58,7 @@ export interface TutorCardProps extends BaseCardProps {
   isVerified: boolean;
   rejectionReason: string | null;
   isLoading: boolean;
-  status: 'Active' | 'Blocked' | 'Available' | 'Booked' | 'Completed' | 'Cancelled' | 'Incomplete';
+  status: 'Active' | 'Blocked' | 'Available' | 'Booked' | 'Completed' | 'Cancelled' | 'Incomplete' | 'confirmed';
   onViewDetails?: (id: string) => void;
   onBook?: (id: string) => void;
   onToggleStatus?: (id: string) => void;
@@ -75,6 +75,7 @@ export interface TutorCardProps extends BaseCardProps {
   activeSeconds?: number;
   averageRating?: number;
   duration?: number;
+  rescheduleCount?: number;
 }
 
 interface ReportCardProps extends BaseCardProps {
@@ -266,7 +267,8 @@ const TutorCard = ({
   paymentProvider,
   activeSeconds,
   averageRating,
-  duration
+  duration,
+  rescheduleCount
 }: TutorCardProps) => {
   let displayPrice = price ?? 0;
   let displayRefund = 0;
@@ -329,6 +331,11 @@ const TutorCard = ({
               <Avatar user={{ id: avatarId || id, name, role: avatarRole }} size="md" interactive={true} />
             </div>
             <div className="min-w-0 flex-1">
+              {['confirmed', 'Booked', 'Completed', 'Cancelled', 'Incomplete'].includes(status) && (
+                <span className="text-[10px] font-bold text-rose-500 tracking-wider block mb-0.5">
+                  {id && id.length === 24 ? `#SESS-${id.slice(-6).toUpperCase()}` : `#SESS-${id}`}
+                </span>
+              )}
               <UserInfo
                 name={name}
                 email={email}
@@ -400,6 +407,13 @@ const TutorCard = ({
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded uppercase tracking-tighter">
                 Duration: {formatDuration(activeSeconds)}
+              </span>
+            </div>
+          )}
+          {rescheduleCount !== undefined && rescheduleCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded uppercase tracking-tighter border border-amber-100">
+                Rescheduled: {rescheduleCount}/3
               </span>
             </div>
           )}

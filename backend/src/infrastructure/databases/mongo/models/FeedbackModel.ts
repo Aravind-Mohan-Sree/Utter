@@ -36,7 +36,6 @@ const FeedbackSchema: Schema = new Schema(
   { timestamps: true },
 );
 
-FeedbackSchema.index({ bookingId: 1 }, { unique: true });
 FeedbackSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.model<IFeedback>('Feedback', FeedbackSchema);

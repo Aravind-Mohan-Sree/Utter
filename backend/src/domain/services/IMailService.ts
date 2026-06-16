@@ -13,6 +13,7 @@ export interface IMailService {
   sendBookingConfirmation(name: string, email: string, sessionTopic: string, language: string, sessionDate: string, isTutor: boolean): Promise<void>;
   sendBookingCancellation(name: string, email: string, sessionTopic: string, language: string, sessionDate: string, amount?: number): Promise<void>;
   sendReportUpdate(name: string, email: string, status: 'Resolved' | 'Rejected', reason?: string): Promise<void>;
+  sendBookingRescheduled(name: string, email: string, sessionTopic: string, language: string, oldDate: string, newDate: string): Promise<void>;
   sendLanguageVerificationUpdate(
     name: string,
     email: string,

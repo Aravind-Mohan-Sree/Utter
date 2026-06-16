@@ -58,6 +58,7 @@ import { UploadChatAttachmentUseCase } from '~use-cases/shared/UploadChatAttachm
 import { MailService } from '~concrete-services/MailService';
 import { GetBookingsUseCase } from '~use-cases/shared/GetBookingsUseCase';
 import { CancelBookingUseCase } from '~use-cases/shared/CancelBookingUseCase';
+import { RescheduleBookingUseCase } from '~use-cases/shared/RescheduleBookingUseCase';
 import { GetWalletTransactionsUseCase } from '~use-cases/shared/GetWalletTransactionsUseCase';
 import { WalletController } from '~controllers/shared/WalletController';
 import { WalletRepository } from '~concrete-repositories/WalletRepository';
@@ -243,6 +244,16 @@ const cancelBookingUseCase = new CancelBookingUseCase(
   mailService,
   createNotificationUseCase,
 );
+const rescheduleBookingUseCase = new RescheduleBookingUseCase(
+  bookingRepository,
+  sessionRepository,
+  userRepository,
+  tutorRepository,
+  walletRepository,
+  mailService,
+  createNotificationUseCase,
+  redisService,
+);
 const pingBookingUseCase = new PingBookingUseCase(bookingRepository, sessionRepository, redisService, walletRepository);
 
 const addReviewUseCase = new AddReviewUseCase(reviewRepository);
@@ -321,6 +332,7 @@ const bookingController = new BookingController(
   getBookingsUseCase,
   cancelBookingUseCase,
   pingBookingUseCase,
+  rescheduleBookingUseCase,
 );
 const getDataController = new GetDataController(getDataUseCase);
 const avatarController = new AvatarController(
@@ -460,6 +472,7 @@ router.post('/book/verify', auth.verify(), bookingController.verifyPayment);
 router.post('/book/wallet', auth.verify(), bookingController.bookWithWallet);
 router.get('/bookings', auth.verify(), bookingController.getBookings);
 router.patch('/bookings/:id/cancel', auth.verify(), bookingController.cancelBooking);
+router.patch('/bookings/:id/reschedule', auth.verify(), bookingController.rescheduleBooking);
 router.post('/bookings/:id/ping', auth.verify(), bookingController.pingSession);
 
 // wallet

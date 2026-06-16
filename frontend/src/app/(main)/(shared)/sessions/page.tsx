@@ -4,13 +4,14 @@ import { Action, ThunkDispatch } from '@reduxjs/toolkit';
 import { useRouter,useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FiSlash } from 'react-icons/fi';
-import { LuInfo } from 'react-icons/lu';
+import { LuInfo, LuCalendar } from 'react-icons/lu';
 import { VscFeedback } from 'react-icons/vsc';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { commonLanguages } from '~components/form/LanguagesInput';
 import { SearchAndFilter } from '~components/form/SearchAndFilter';
 import { FeedbackModal } from '~components/modals/FeedbackModal';
+import { RescheduleModal } from '~components/modals/RescheduleModal';
 import AbstractShapesBackground from '~components/ui/AbstractShapesBackground';
 import Button from '~components/ui/Button';
 import { Card } from '~components/ui/Card';
@@ -71,6 +72,8 @@ export default function SessionsPage() {
   const [feedbackMode, setFeedbackMode] = useState<'submit' | 'view'>('view');
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [showUpcomingTooltip, setShowUpcomingTooltip] = useState(false);
+  const [rescheduleBooking, setRescheduleBooking] = useState<Booking | null>(null);
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
 
   const handleOpenFeedback = (booking: Booking, mode: 'submit' | 'view' = 'view') => {
     setFeedbackBooking(booking);
@@ -326,6 +329,12 @@ export default function SessionsPage() {
                             • <span className="font-semibold text-gray-700">Above 30 mins talk time</span>: Full payout.
                           </p>
                         </div>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0 mt-1.5" />
+                          <p>
+                            <span className="font-bold text-gray-800">Rescheduling Limit</span>: A booking can be rescheduled a maximum of <span className="font-bold text-gray-800">3 times</span>, provided both the current and target sessions start at least <span className="font-bold text-gray-800">1 hour</span> in the future.
+                          </p>
+                        </div>
                       </>
                     )}
                   </div>
@@ -365,14 +374,27 @@ export default function SessionsPage() {
                       showTime={true}
                       price={booking.price}
                       paymentProvider={booking.paymentProvider}
+                      rescheduleCount={booking.rescheduleCount}
                       customActions={
-                        <Button
-                          variant="outline"
-                          icon={<FiSlash size={22} />}
-                          className={`text-gray-400! h-fit rounded-lg p-0.5! transition-colors duration-200! hover:text-red-500! hover:bg-red-50`}
-                          onClick={() => handleCancel(booking.id)}
-                          title="Cancel Session"
-                        />
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            icon={<LuCalendar size={22} />}
+                            className="text-rose-500! h-fit rounded-lg p-0.5! transition-colors duration-200! hover:bg-rose-50!"
+                            onClick={() => {
+                              setRescheduleBooking(booking);
+                              setIsRescheduleOpen(true);
+                            }}
+                            title="Reschedule Session"
+                          />
+                          <Button
+                            variant="outline"
+                            icon={<FiSlash size={22} />}
+                            className={`text-gray-400! h-fit rounded-lg p-0.5! transition-colors duration-200! hover:text-red-500! hover:bg-red-50`}
+                            onClick={() => handleCancel(booking.id)}
+                            title="Cancel Session"
+                          />
+                        </div>
                       }
                       className="bg-white/50 backdrop-blur-sm hover:border-rose-200"
                       onCancel={undefined}
@@ -463,6 +485,7 @@ export default function SessionsPage() {
                       price={booking.price}
                       paymentProvider={booking.paymentProvider}
                       activeSeconds={booking.activeSeconds}
+                      rescheduleCount={booking.rescheduleCount}
                       className="hover:border-rose-200"
                       customActions={
                         (booking.status === 'Completed' ||
@@ -517,6 +540,19 @@ export default function SessionsPage() {
           topic={feedbackBooking.topic}
           onSubmitSuccess={fetchBookings}
           studentName={feedbackBooking.otherPartyName}
+        />
+      )}
+      {rescheduleBooking && (
+        <RescheduleModal
+          isOpen={isRescheduleOpen}
+          onClose={() => {
+            setIsRescheduleOpen(false);
+            setRescheduleBooking(null);
+          }}
+          booking={rescheduleBooking}
+          role={user?.role === 'tutor' ? 'tutor' : 'user'}
+          tutorId={user?.role === 'tutor' ? user.id : rescheduleBooking.otherPartyId}
+          onSuccess={fetchBookings}
         />
       )}
     </div>

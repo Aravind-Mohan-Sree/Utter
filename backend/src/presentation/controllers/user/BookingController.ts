@@ -7,6 +7,8 @@ import { GetBookingsDTO } from '~dtos/GetBookingsDTO';
 import { ICancelBookingUseCase } from '~use-case-interfaces/shared/ICancelBookingUseCase';
 import { IGetBookingsUseCase } from '~use-case-interfaces/shared/IGetBookingsUseCase';
 import { ICreateBookingOrderUseCase, IVerifyPaymentAndBookUseCase, IBookWithWalletUseCase } from '~use-case-interfaces/user/IBookingUseCase';
+import { IRescheduleBookingUseCase } from '~use-case-interfaces/shared/IRescheduleBookingUseCase';
+import { RescheduleBookingDTO } from '~dtos/RescheduleBookingDTO';
 
 interface IAuthenticatedRequest extends Request {
   user: {
@@ -27,6 +29,7 @@ export class BookingController {
     private _getBookingsUC: IGetBookingsUseCase,
     private _cancelBookingUC: ICancelBookingUseCase,
     private _pingBookingUC: IPingBookingUseCase,
+    private _rescheduleBookingUC: IRescheduleBookingUseCase,
   ) { }
 
   /**
@@ -173,6 +176,29 @@ export class BookingController {
       res.status(httpStatusCode.OK).json({
         success: true,
         completed: response.completed,
+      });
+    } catch (error) {
+      logger.error(error);
+      next(error);
+    }
+  };
+
+  /**
+   * Reschedules an existing booking to a new session.
+   */
+  rescheduleBooking = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { newSessionId } = req.body;
+      const user = (req as unknown as IAuthenticatedRequest).user;
+
+      const dto = new RescheduleBookingDTO({ bookingId: id, newSessionId });
+
+      await this._rescheduleBookingUC.execute(dto.bookingId, dto.newSessionId, user.id, user.role);
+
+      res.status(httpStatusCode.OK).json({
+        success: true,
+        message: 'Session rescheduled successfully',
       });
     } catch (error) {
       logger.error(error);

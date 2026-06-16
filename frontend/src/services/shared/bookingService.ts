@@ -16,6 +16,7 @@ export interface Booking {
     paymentProvider?: string;
     activeSeconds?: number;
     duration?: number;
+    rescheduleCount?: number;
 }
 
 export interface GetBookingsResponse {
@@ -53,6 +54,15 @@ export const cancelBooking = async (bookingId: string, role: string): Promise<vo
     try {
         const url = role === 'tutor' ? `/tutor/bookings/${bookingId}/cancel` : `/user/bookings/${bookingId}/cancel`;
         await axios.patch(url);
+    } catch (error) {
+        throw error;
+    }
+};
+
+export const rescheduleBooking = async (bookingId: string, newSessionId: string, role: string): Promise<void> => {
+    try {
+        const url = role === 'tutor' ? `/tutor/bookings/${bookingId}/reschedule` : `/user/bookings/${bookingId}/reschedule`;
+        await axios.patch(url, { newSessionId });
     } catch (error) {
         throw error;
     }

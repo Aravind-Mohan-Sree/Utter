@@ -15,6 +15,7 @@ export interface IBooking extends Document {
   topic: string;
   language: string;
   price: number;
+  rescheduleCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +36,7 @@ const bookingSchema = new Schema<IBooking>(
     topic: { type: String, required: true, default: 'Unknown Topic' },
     language: { type: String, required: true, default: 'N/A' },
     price: { type: Number, required: true, default: 0 },
+    rescheduleCount: { type: Number, default: 0, required: true },
   },
   {
     timestamps: true,
