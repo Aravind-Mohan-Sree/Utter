@@ -203,9 +203,29 @@ export class DataValidatorService implements IValidateDataService {
    * Rules: 1-3 languages.
    */
   validateKnownLanguages(knownLanguages: string[]): ValidatedData {
+    const ALLOWED_LANGUAGES = [
+      'English',
+      'Spanish',
+      'French',
+      'German',
+      'Chinese',
+      'Japanese',
+      'Korean',
+      'Hindi',
+      'Arabic',
+      'Russian',
+      'Portuguese',
+      'Italian',
+      'Dutch',
+      'Turkish',
+      'Vietnamese',
+    ] as const;
+
     const languagesSchema = z.object({
       knownLanguages: z
-        .array(z.string().trim().nonempty('Language cannot be empty'))
+        .array(z.enum(ALLOWED_LANGUAGES, {
+          message: 'Invalid language selection',
+        }))
         .min(1, 'At least one language is required')
         .max(3, 'Maximum three languages allowed'),
     });

@@ -3,11 +3,9 @@ import {
   FileInput,
   IValidateDataService,
 } from '~service-interfaces/IValidateDataService';
+import { UserProfileUpdateDTO } from './UserProfileUpdateDTO';
 
-export class TutorProfileUpdateDTO {
-  name: string;
-  bio: string;
-  knownLanguages: string[];
+export class TutorProfileUpdateDTO extends UserProfileUpdateDTO {
   yearsOfExperience: string;
   certificate: FileInput | null;
 
@@ -21,19 +19,9 @@ export class TutorProfileUpdateDTO {
     },
     validator: IValidateDataService,
   ) {
-    let result = validator.validateName(data.name);
+    super(data, validator);
 
-    if (!result.success) throw new BadRequestError(result.message);
-
-    result = validator.validateBio(data.bio);
-
-    if (!result.success) throw new BadRequestError(result.message);
-
-    result = validator.validateKnownLanguages(data.languages);
-
-    if (!result.success) throw new BadRequestError(result.message);
-
-    result = validator.validateExperience(data.experience);
+    let result = validator.validateExperience(data.experience);
 
     if (!result.success) throw new BadRequestError(result.message);
 
@@ -42,9 +30,6 @@ export class TutorProfileUpdateDTO {
       if (!result.success) throw new BadRequestError(result.message);
     }
 
-    this.name = data.name.trim();
-    this.bio = data.bio.trim();
-    this.knownLanguages = data.languages;
     this.yearsOfExperience = data.experience.trim();
     this.certificate = data.certificate || null;
   }

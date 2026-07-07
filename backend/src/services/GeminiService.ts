@@ -18,6 +18,7 @@ export class GeminiService implements IGeminiService {
       model: 'gemini-3.1-flash-lite-preview',
       generationConfig: {
         responseMimeType: 'application/json',
+        temperature: 1.0,
       },
     });
   }
@@ -30,7 +31,15 @@ export class GeminiService implements IGeminiService {
     language: string,
     difficulty: string,
     volume: number,
+    excludeQuestions?: string[],
   ): Promise<IQuestion[]> {
+    let exclusionInstructions = '';
+    if (excludeQuestions && excludeQuestions.length > 0) {
+      exclusionInstructions = `Do not generate questions that are similar or identical to the following list:
+      ${excludeQuestions.map((q, idx) => `${idx + 1}. "${q}"`).join('\n')}
+      `;
+    }
+
     const prompt = `Generate a language learning quiz for ${language} at ${difficulty} difficulty.
     Volume: ${volume} questions.
     Each question must have:
@@ -39,6 +48,8 @@ export class GeminiService implements IGeminiService {
     - correctAnswerIndex: Index (0-3) of the correct answer.
     - explanation: A brief context for why the answer is correct.
     
+    ${exclusionInstructions}
+
     Return the response as a JSON array of objects following this structure:
     [
       {

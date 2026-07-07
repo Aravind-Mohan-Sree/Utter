@@ -9,6 +9,7 @@ import { env } from '~config/env';
 interface IEntityData {
   id: string;
   isBlocked: boolean;
+  email: string;
 }
 
 export interface IAuthenticate {
@@ -91,6 +92,7 @@ export class Authenticate<Entity> implements IAuthenticate {
       req.user = {
         id: user.id,
         role: payload.role as string,
+        email: user.email,
       };
 
       return next();

@@ -3,10 +3,9 @@ import {
   IValidateDataService,
 } from '~service-interfaces/IValidateDataService';
 import { BadRequestError } from '~errors/HttpError';
+import { FinishRegisterUserDTO } from './FinishRegisterUserDTO';
 
-export class FinishRegisterTutorDTO {
-  email: string;
-  knownLanguages: string[];
+export class FinishRegisterTutorDTO extends FinishRegisterUserDTO {
   yearsOfExperience: string;
   introVideo: FileInput;
   certificate: FileInput;
@@ -21,15 +20,9 @@ export class FinishRegisterTutorDTO {
     },
     validator: IValidateDataService,
   ) {
-    let result = validator.validateEmail(data.email);
+    super(data, validator);
 
-    if (!result.success) throw new BadRequestError(result.message);
-
-    result = validator.validateKnownLanguages(data.languages);
-
-    if (!result.success) throw new BadRequestError(result.message);
-
-    result = validator.validateExperience(data.experience);
+    let result = validator.validateExperience(data.experience);
 
     if (!result.success) throw new BadRequestError(result.message);
 
@@ -41,8 +34,6 @@ export class FinishRegisterTutorDTO {
 
     if (!result.success) throw new BadRequestError(result.message);
 
-    this.email = data.email.trim();
-    this.knownLanguages = data.languages;
     this.yearsOfExperience = data.experience.trim();
     this.introVideo = data.introVideo;
     this.certificate = data.certificate;

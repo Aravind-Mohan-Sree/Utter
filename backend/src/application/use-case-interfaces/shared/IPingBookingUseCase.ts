@@ -1,3 +1,3 @@
 export interface IPingBookingUseCase {
-    execute(bookingId: string, role: string): Promise<{ completed: boolean }>;
+    execute(bookingId: string, userId: string, role: string): Promise<{ completed: boolean }>;
 }

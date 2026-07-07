@@ -2,6 +2,7 @@ import { Message } from '~entities/Message';
 import { IMessageRepository } from '~repository-interfaces/IMessageRepository';
 import { IConversationRepository } from '~repository-interfaces/IConversationRepository';
 import { IGetMessagesUseCase } from '~use-case-interfaces/user/IChatUseCase';
+import { NotFoundError, ForbiddenError } from '~errors/HttpError';
 import mongoose from 'mongoose';
 
 export class GetMessagesUseCase implements IGetMessagesUseCase {
@@ -15,6 +16,15 @@ export class GetMessagesUseCase implements IGetMessagesUseCase {
     userId: string,
     options?: { page?: number; limit?: number; targetId?: string },
   ): Promise<{ messages: Message[]; page: number }> {
+    const conversation = await this._conversationRepository.findOneById(conversationId);
+    if (!conversation) {
+      throw new NotFoundError('Conversation not found');
+    }
+
+    if (!conversation.participants.includes(userId)) {
+      throw new ForbiddenError('You are not a participant in this conversation');
+    }
+
     const limit = options?.limit || 30;
     let page = options?.page || 1;
 

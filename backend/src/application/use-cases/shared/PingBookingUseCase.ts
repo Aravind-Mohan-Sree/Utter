@@ -9,6 +9,7 @@ import { Wallet } from '~entities/Wallet';
 import { IWallet } from '~models/WalletModel';
 import { FilterQuery } from '~repository-interfaces/IBaseRepository';
 import { logger } from '~logger/logger';
+import { NotFoundError, ForbiddenError } from '~errors/HttpError';
 
 /**
  * Use case to handle periodic pings from students and tutors during a live session.
@@ -26,10 +27,24 @@ export class PingBookingUseCase implements IPingBookingUseCase {
   /**
    * Records a ping and checks if the session requirements for completion are met.
    * @param bookingId The ID of the active booking.
+   * @param userId The ID of the user requesting the ping.
    * @param role The role of the person pinging (user/tutor).
    * @returns Completion status.
    */
-  async execute(bookingId: string, role: string) {
+  async execute(bookingId: string, userId: string, role: string) {
+    const booking = await this._bookingRepository.findOneById(bookingId);
+    if (!booking) {
+      throw new NotFoundError('Booking not found');
+    }
+
+    // Authorization check: only the student or tutor for this booking can ping
+    if (role === 'user' && booking.userId !== userId) {
+      throw new ForbiddenError('Not authorized');
+    }
+    if (role === 'tutor' && booking.tutorId !== userId) {
+      throw new ForbiddenError('Not authorized');
+    }
+
     // Register the current user's activity in Redis with a short TTL (15s)
     const pingKey = `booking_ping:${bookingId}:${role}`;
     await this._redisService.set(pingKey, '1', 15);
@@ -43,9 +58,6 @@ export class PingBookingUseCase implements IPingBookingUseCase {
 
     // Completion logic is driven by the tutor's ping when the student is also active
     if (isOtherActive && role === 'tutor') {
-      const booking = await this._bookingRepository.findOneById(bookingId);
-      if (!booking) throw new Error('Booking not found');
-
       if (booking.status === 'Completed') {
         return { completed: true };
       }
@@ -116,8 +128,7 @@ export class PingBookingUseCase implements IPingBookingUseCase {
       }
     } else {
       // If student is pinging or other is not active, just check current status
-      const booking = await this._bookingRepository.findOneById(bookingId);
-      if (booking?.status === 'Completed') {
+      if (booking.status === 'Completed') {
         completed = true;
       }
     }

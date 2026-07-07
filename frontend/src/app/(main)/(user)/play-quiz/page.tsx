@@ -46,16 +46,15 @@ export default function PlayQuizPage() {
   const authUser = useSelector((state: { auth: { user: { email?: string } | null } }) => state.auth.user);
 
   const fetchUserData = useCallback(async () => {
-    if (!authUser?.email) return;
     try {
-      const response = await axios.get(`/user/get-account-details/${authUser.email}`);
+      const response = await axios.get('/user/get-account-details');
       setCurrentUser(response.data.user);
     } catch (error) {
       console.error('Failed to fetch user profile', error);
     } finally {
       setIsDataLoading(false);
     }
-  }, [authUser?.email]);
+  }, []);
 
   useEffect(() => {
     fetchUserData();

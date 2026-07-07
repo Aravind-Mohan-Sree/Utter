@@ -382,7 +382,7 @@ router.post(
 router.patch('/reset-password', forgotPasswordController.resetPassword);
 router.post('/signout', auth.verify(), signoutController.signout);
 router.get(
-  '/get-account-details/:tutorEmail',
+  '/get-account-details',
   auth.verify(),
   getDataController.getAccountDetails,
 );

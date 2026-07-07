@@ -19,7 +19,7 @@ export interface IGetNotificationsUseCase {
 }
 
 export interface IMarkNotificationReadUseCase {
-  execute(id: string): Promise<boolean>;
+  execute(id: string, userId: string): Promise<boolean>;
 }
 
 export interface IMarkAllNotificationsReadUseCase {

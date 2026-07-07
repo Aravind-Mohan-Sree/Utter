@@ -443,7 +443,7 @@ router.post(
 router.patch('/reset-password', forgotPasswordController.resetPassword);
 router.post('/signout', signoutController.signout);
 router.get(
-  '/get-account-details/:userEmail',
+  '/get-account-details',
   auth.verify(),
   getDataController.getAccountDetails,
 );

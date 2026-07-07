@@ -3,15 +3,12 @@ import {
   IValidateDataService,
 } from '~service-interfaces/IValidateDataService';
 import { BadRequestError } from '~errors/HttpError';
+import { RegisterUserDTO } from './RegisterUserDTO';
 
-export class RegisterTutorDTO {
-  name: string;
-  email: string;
-  knownLanguages: string[];
+export class RegisterTutorDTO extends RegisterUserDTO {
   yearsOfExperience: string;
   introVideo: FileInput;
   certificate: FileInput;
-  password: string;
 
   constructor(
     data: {
@@ -26,19 +23,9 @@ export class RegisterTutorDTO {
     },
     validator: IValidateDataService,
   ) {
-    let result = validator.validateName(data.name);
+    super(data, validator);
 
-    if (!result.success) throw new BadRequestError(result.message);
-
-    result = validator.validateEmail(data.email);
-
-    if (!result.success) throw new BadRequestError(result.message);
-
-    result = validator.validateKnownLanguages(data.languages);
-
-    if (!result.success) throw new BadRequestError(result.message);
-
-    result = validator.validateExperience(data.experience);
+    let result = validator.validateExperience(data.experience);
 
     if (!result.success) throw new BadRequestError(result.message);
 
@@ -50,19 +37,8 @@ export class RegisterTutorDTO {
 
     if (!result.success) throw new BadRequestError(result.message);
 
-    result = validator.validatePassword(data.password);
-
-    if (!result.success) throw new BadRequestError(result.message);
-
-    if (data.password.trim() !== data.confirmPassword.trim())
-      throw new BadRequestError("Passwords don't match");
-
-    this.name = data.name.trim();
-    this.email = data.email.trim();
-    this.knownLanguages = data.languages;
     this.yearsOfExperience = data.experience.trim();
     this.introVideo = data.introVideo;
     this.certificate = data.certificate;
-    this.password = data.password.trim();
   }
 }

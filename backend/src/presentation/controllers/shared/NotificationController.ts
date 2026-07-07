@@ -9,6 +9,7 @@ import { NotificationMapper } from '~mappers/NotificationMapper';
 import { logger } from '~logger/logger';
 import { httpStatusCode } from '~constants/httpStatusCode';
 import { successMessage } from '~constants/successMessage';
+import { HttpError } from '~errors/HttpError';
 
 /**
  * Controller for handling notification-related operations.
@@ -57,7 +58,12 @@ export class NotificationController {
   async markAsRead(req: Request, res: Response): Promise<void> {
     try {
       const id = req.params.id;
-      const success = await this._markNotificationReadUseCase.execute(id);
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(httpStatusCode.UNAUTHORIZED).json({ message: 'Unauthorized' });
+        return;
+      }
+      const success = await this._markNotificationReadUseCase.execute(id, userId);
       if (success) {
         res.status(httpStatusCode.OK).json({
           success: true,
@@ -68,7 +74,11 @@ export class NotificationController {
       }
     } catch (error) {
       logger.error('Error marking notification read:', error);
-      res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({ message: 'Internal Server Error' });
+      if (error instanceof HttpError) {
+        res.status(error.statusCode).json({ message: error.message });
+      } else {
+        res.status(httpStatusCode.INTERNAL_SERVER_ERROR).json({ message: 'Internal Server Error' });
+      }
     }
   }
 

@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { errorMessage } from '~constants/errorMessage';
 import { httpStatusCode } from '~constants/httpStatusCode';
 import { successMessage } from '~constants/successMessage';
-import { NotFoundError } from '~errors/HttpError';
+import { NotFoundError, BadRequestError } from '~errors/HttpError';
 import { logger } from '~logger/logger';
 import { IGetDataUseCase } from '~use-case-interfaces/user/IUserUseCase';
 
@@ -15,8 +15,11 @@ export class GetDataController {
     next: NextFunction,
   ) => {
     try {
-      const { userEmail } = req.params;
-      const user = await this._getData.execute(userEmail);
+      const email = req.user?.email;
+      if (!email) {
+        throw new BadRequestError('User email not found in token payload');
+      }
+      const user = await this._getData.execute(email);
 
       if (!user) throw new NotFoundError(errorMessage.SOMETHING_WRONG);
 

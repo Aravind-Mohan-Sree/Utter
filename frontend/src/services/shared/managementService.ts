@@ -1,12 +1,12 @@
 import { API_ROUTES } from '~constants/routes';
 import axios from '~utils/axiosConfig';
 
-export const getAccountDetails = async (userType: string, email: string) => {
+export const getAccountDetails = async (userType: string, email?: string) => {
   try {
     const res = await axios.get(
       userType === 'user'
-        ? `${API_ROUTES.USER.GET_ACCOUNT_DETAILS}/${email}`
-        : `${API_ROUTES.TUTOR.GET_ACCOUNT_DETAILS}/${email}`,
+        ? `${API_ROUTES.USER.GET_ACCOUNT_DETAILS}`
+        : `${API_ROUTES.TUTOR.GET_ACCOUNT_DETAILS}`,
     );
 
     return res.data;

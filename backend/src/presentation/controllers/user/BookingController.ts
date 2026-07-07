@@ -171,7 +171,7 @@ export class BookingController {
       const { id } = req.params;
       const user = (req as unknown as IAuthenticatedRequest).user;
 
-      const response = await this._pingBookingUC.execute(id, user.role);
+      const response = await this._pingBookingUC.execute(id, user.id, user.role);
 
       res.status(httpStatusCode.OK).json({
         success: true,
